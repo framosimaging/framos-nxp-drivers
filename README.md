@@ -7,10 +7,27 @@ Prerequisites:
 - Installed Ubuntu 20.04 OS or higher on Host System.
 - Downloaded NXP documentation for [Linux version 6.6.3_1.0.0](https://www.nxp.com/design/design-center/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX).
 - Installed Yocto Toolchain 6.6.3_1.0.0 - follow the instructions in i.MX_Yocto_Project_User's_Guide document from documentation.
-- Follow the chapter building and testing of [AN13712 NXP Application note](https://docs.nxp.com/bundle/AN13712/page/topics/build_and_test.html) to download and build repositories:
-   - NXP kernel - linux-imx
-   - isp-imx
+- Download and build NXP repositories to wanted directory:
+   - NXP kernel - linux-imx:
+     ```
+     git clone https://github.com/nxp-imx/linux-imx.git
+     git checkout lf-6.6.3-1.0.0
+     . /opt/fsl-imx-wayland/6.6-nanbield/environment-setup-armv8a-poky-linux
+     make mrproper
+     make imx_v8_defconfig
+     make ARCH=arm64 -j8  # change num of processors 
+     ```
+   - isp-imx:
+     ```
+     wget https://www.nxp.com/lgfiles/NMG/MAD/YOCTO/isp-imx-4.2.2.24.1.bin
+     chmod +x isp-imx-4.2.2.24.1.bin
+     ./isp-imx-4.2.2.24.1.bin
+     ```
    - isp-vvcam
+     ```
+     git clone https://github.com/nxp-imx/isp-vvcam.git
+     git checkout lf-6.6.3-1.0.0
+     ```
 
 1. Export full path of NXP directory where *linux-imx*, *isp-imx* and *isp-vvcam* are located:
     ```
