@@ -1,0 +1,54 @@
+{
+    "dewarpConfigArray": [
+        {
+            "source_image": {
+                "width": 3536,
+                "height": 2140
+            },
+            "?dewarpType": "LENS_CORRECTION, FISHEYE_EXPAND, SPLIT_SCREEN",
+            "dewarpType": "LENS_CORRECTION",
+            "scale": {
+                "roix": 0,
+                "roiy": 0,
+                "factor": 1.0
+            },
+            "split": {
+                "horizon_line": 1070,
+                "vertical_line_up": 1768,
+                "vertical_line_down": 1768
+            },
+            "bypass": true,
+            "hflip": false,
+            "vflip": false,
+            "camera_matrix": [
+                1000.0,
+                0.0,
+                1768.0,
+                0.0,
+                1000.0,
+                1070.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "distortion_coeff": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "perspective": [
+                1.0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1
+            ]
+        }
+    ]
+}

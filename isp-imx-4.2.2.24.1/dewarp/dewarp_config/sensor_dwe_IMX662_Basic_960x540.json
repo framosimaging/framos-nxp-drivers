@@ -1,0 +1,54 @@
+{
+    "dewarpConfigArray": [
+        {
+            "source_image": {
+                "width": 960,
+                "height": 540
+            },
+            "?dewarpType": "LENS_CORRECTION, FISHEYE_EXPAND, SPLIT_SCREEN",
+            "dewarpType": "LENS_CORRECTION",
+            "scale": {
+                "roix": 0,
+                "roiy": 0,
+                "factor": 1.0
+            },
+            "split": {
+                "horizon_line": 270,
+                "vertical_line_up": 480,
+                "vertical_line_down": 480
+            },
+            "bypass": true,
+            "hflip": false,
+            "vflip": false,
+            "camera_matrix": [
+                1000.0,
+                0.0,
+                480.0,
+                0.0,
+                1000.0,
+                270.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "distortion_coeff": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "perspective": [
+                1.0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1
+            ]
+        }
+    ]
+}--- imx/run.sh
