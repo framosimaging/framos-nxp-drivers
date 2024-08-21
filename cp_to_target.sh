@@ -22,12 +22,10 @@ echo "Copying device trees..."
 scp ./linux-imx/arch/arm64/boot/dts/freescale/imx8mp-evk-imx*.dtb root@$TARGET_IP:$DEVICE_TREE_DIR
 
 echo "Copying vvcam sensor modules..."
-scp ./isp-vvcam/vvcam/v4l2/dwe/vvcam-dwe.ko root@$TARGET_IP:$MODULES_DIR
-scp ./isp-vvcam/vvcam/v4l2/isp/vvcam-isp.ko root@$TARGET_IP:$MODULES_DIR
-scp ./isp-vvcam/vvcam/v4l2/video/vvcam-video.ko root@$TARGET_IP:$MODULES_DIR
-scp ./isp-vvcam/vvcam/v4l2/sensor/imx662/imx662.ko root@$TARGET_IP:$MODULES_DIR
-scp ./isp-vvcam/vvcam/v4l2/sensor/imx676/imx676.ko root@$TARGET_IP:$MODULES_DIR
-scp ./isp-vvcam/vvcam/v4l2/sensor/imx678/imx678.ko root@$TARGET_IP:$MODULES_DIR
+scp ./isp-vvcam/modules/vvcam-dwe.ko root@$TARGET_IP:$MODULES_DIR
+scp ./isp-vvcam/modules/vvcam-isp.ko root@$TARGET_IP:$MODULES_DIR
+scp ./isp-vvcam/modules/vvcam-video.ko root@$TARGET_IP:$MODULES_DIR
+scp ./isp-vvcam/modules/imx*.ko root@$TARGET_IP:$MODULES_DIR
 
 echo "Copying isp media server and isi drivers..."
 echo "Copying /opt/bin folder to ${OPT_BIN}"
