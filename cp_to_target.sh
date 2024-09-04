@@ -26,6 +26,7 @@ scp ./isp-vvcam/modules/vvcam-dwe.ko root@$TARGET_IP:$MODULES_DIR
 scp ./isp-vvcam/modules/vvcam-isp.ko root@$TARGET_IP:$MODULES_DIR
 scp ./isp-vvcam/modules/vvcam-video.ko root@$TARGET_IP:$MODULES_DIR
 scp ./isp-vvcam/modules/imx*.ko root@$TARGET_IP:$MODULES_DIR
+scp ./isp-vvcam/modules/max9679*.ko root@$TARGET_IP:$MODULES_DIR
 
 echo "Copying isp media server and isi drivers..."
 echo "Copying /opt/bin folder to ${OPT_BIN}"
