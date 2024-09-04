@@ -23,21 +23,21 @@
 	/delete-node/ov5640_mipi@3c;
 
 	tca9548_70_CSI1: tca9548@70 {
-        compatible = "nxp,pca9548";
-        reg = <0x70>;
-        #address-cells = <1>;
-        #size-cells = <0>;
-        skip_mux_detect;
-        force_bus_start = <CAMERA_I2C_MUX_BUS(0)>;
+		compatible = "nxp,pca9548";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		skip_mux_detect;
+		force_bus_start = <CAMERA_I2C_MUX_BUS(0)>;
 
 		i2c@0 {
-            reg = <0>;
-            i2c-mux,deselect-on-exit;
-            #address-cells = <1>;
-            #size-cells = <0>;
-            status = "okay";
+			reg = <0>;
+			i2c-mux,deselect-on-exit;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
 
-            imx678_0: imx678_mipi@1a {
+			imx678_0: imx678_mipi@1a {
 				compatible = "framos,imx678";
 				reg = <0x1a>;
 				pinctrl-names = "default";

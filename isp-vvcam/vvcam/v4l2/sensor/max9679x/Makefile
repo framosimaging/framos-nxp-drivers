@@ -1,17 +1,13 @@
 PWD := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-TARGET = imx676
+obj-m +=max96792.o
+obj-m +=max96793.o
 
-obj-m +=$(TARGET).o
-$(TARGET)-objs += imx676_mipi.o
-
-ccflags-y += -I$(PWD)/../../../common/ -I$(PWD)/../max9679x/
+# ccflags-y += -I$(PWD)/../../../common/
 ccflags-y += -O2 -Werror
 
 ARCH_TYPE ?= arm64
 ANDROID ?= no
-
-KBUILD_EXTRA_SYMBOLS += $(PWD)/../max9679x/Module.symvers
 
 ifeq ($(ANDROID), yes)
 
@@ -26,6 +22,7 @@ clean:
 	@find ../ -name "*.o" | xargs rm -f
 	@find ../ -name "*.ko" | xargs rm -f
 
+
 else
 
 all:
@@ -35,5 +32,4 @@ modules_install:
 clean:
 	rm -rf $($(TARGET)-objs)
 	make -C $(KERNEL_SRC) M=$(PWD) clean
-
 endif

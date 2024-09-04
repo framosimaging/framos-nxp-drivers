@@ -5,11 +5,13 @@ TARGET = imx678
 obj-m +=$(TARGET).o
 $(TARGET)-objs += imx678_mipi.o
 
-ccflags-y += -I$(PWD)/../../../common/
+ccflags-y += -I$(PWD)/../../../common/ -I$(PWD)/../max9679x/
 ccflags-y += -O2 -Werror
 
 ARCH_TYPE ?= arm64
 ANDROID ?= no
+
+KBUILD_EXTRA_SYMBOLS += $(PWD)/../max9679x/Module.symvers
 
 ifeq ($(ANDROID), yes)
 

@@ -19,11 +19,6 @@
 
 #define CAMERA_I2C_MUX_BUS(x) (0x1E + x)
 
-/* TCA6408 Pxx bus-port define*/
-#define SLAMODE0	0
-
-/delete-node/ &flexcan2; //flexcan2 enable signal in collision with GPIO expander on Framos FPA
-
 &i2c2 {
 	/delete-node/ov5640_mipi@3c;
 
@@ -42,8 +37,8 @@
 			#size-cells = <0>;
 			status = "okay";
 
-			imx662_0: imx662_mipi@1a {
-				compatible = "framos,imx662";
+			imx900_0: imx900_mipi@1a {
+				compatible = "framos,imx900";
 				reg = <0x1a>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_csi0_pwn>, <&pinctrl_csi0_rst>, <&pinctrl_csi_mclk>;
@@ -51,14 +46,15 @@
 				clock-names = "csi_mclk";
 				csi_id = <0>;
 				rst-gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
+				mipi_csi;
 				status = "okay";
 
 				port {
-					imx662_mipi_0_ep: endpoint {
+					imx900_mipi_0_ep: endpoint {
 						remote-endpoint = <&mipi_csi0_ep>;
 						data-lanes = <1 2 3 4>;
 						clock-lanes = <0>;
-						max-pixel-frequency = /bits/ 64 <266000000>;
+						max-pixel-frequency = /bits/ 64 <500000000>;
 					};
 				};
 			};
@@ -72,61 +68,8 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
-	/delete-node/gpio@20;
-	/delete-node/ov5640_mipi@3c;
-
-	tca9548_70_CSI2: tca9548@70 {
-		compatible = "nxp,pca9548";
-		reg = <0x70>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		skip_mux_detect;
-		force_bus_start = <CAMERA_I2C_MUX_BUS(0)>;
-
-		i2c@0 {
-			reg = <0>;
-			i2c-mux,deselect-on-exit;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			status = "okay";
-
-			tca6408_20_i2c0: tca6408@20 {
-				compatible = "ti,tca6408";
-				gpio-controller;
-				#gpio-cells = <2>;
-				reg = <0x20>;
-				status = "okay";
-				/*
-				 * P2: SLAMODE0
-				 */
-				tca6408_20_i2c0_slamode0 {
-					gpio-hog;
-					output-high;
-					gpios = <SLAMODE0 0>;
-					label = "slamode0";
-					status = "okay";
-				};
-			};
-
-			imx662_1: imx662_mipi@10 {
-				compatible = "framos,imx662";
-				reg = <0x10>;
-				clocks = <&clk IMX8MP_CLK_IPP_DO_CLKO2>;
-				clock-names = "csi_mclk";
-				csi_id = <1>;
-				rst-gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
-				status = "okay";
-
-				port {
-					imx662_mipi_1_ep: endpoint {
-						remote-endpoint = <&mipi_csi1_ep>;
-						data-lanes = <1 2 3 4>;
-						clock-lanes = <0>;
-						max-pixel-frequency = /bits/ 64 <266000000>;
-					};
-				};
-			};
-		};
+	ov5640_1: ov5640_mipi@3c {
+		status = "disabled";
 	};
 };
 
@@ -146,23 +89,16 @@
 	status = "okay";
 };
 
-&isp_1 {
-	status = "okay";
-};
-
 &dewarp {
 	status = "okay";
 };
 
 &mipi_csi_0 {
 	status = "okay";
-	clock-frequency = <266000000>;
-	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_266M>;
-	assigned-clock-rates = <266000000>;
 
 	port {
 		mipi_csi0_ep: endpoint {
-			remote-endpoint = <&imx662_mipi_0_ep>;
+			remote-endpoint = <&imx900_mipi_0_ep>;
 			data-lanes = <4>;
 			csis-hs-settle = <13>;
 			csis-clk-settle = <2>;
@@ -172,18 +108,5 @@
 };
 
 &mipi_csi_1 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	status = "okay";
-
-	port@1 {
-		reg = <1>;
-		mipi_csi1_ep: endpoint {
-			remote-endpoint = <&imx662_mipi_1_ep>;
-			data-lanes = <4>;
-			csis-hs-settle = <13>;
-			csis-clk-settle = <2>;
-			csis-wclk;
-		};
-	};
+	status = "disabled";
 };

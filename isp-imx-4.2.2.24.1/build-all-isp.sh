@@ -93,6 +93,8 @@ cp -a appshell/build/generated/${BUILD_TYPE}/bin/IMX676* ${ISP_BIN_DIR}
 cp -a appshell/build/generated/${BUILD_TYPE}/bin/imx676* ${ISP_BIN_DIR}
 cp -a appshell/build/generated/${BUILD_TYPE}/bin/IMX678* ${ISP_BIN_DIR}
 cp -a appshell/build/generated/${BUILD_TYPE}/bin/imx678* ${ISP_BIN_DIR}
+cp -a appshell/build/generated/${BUILD_TYPE}/bin/IMX900* ${ISP_BIN_DIR}
+cp -a appshell/build/generated/${BUILD_TYPE}/bin/imx900* ${ISP_BIN_DIR}
 cp -a appshell/build/generated/${BUILD_TYPE}/bin/isp_media_server ${ISP_BIN_DIR}
 cp -a appshell/build/generated/${BUILD_TYPE}/bin/*_test ${ISP_BIN_DIR}
 cp -a appshell/build/generated/${BUILD_DIR}/bin/*.cfg ${ISP_BIN_DIR}/

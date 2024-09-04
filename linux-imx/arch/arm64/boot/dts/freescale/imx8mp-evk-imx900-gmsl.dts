@@ -37,25 +37,52 @@
 			#size-cells = <0>;
 			status = "okay";
 
-			imx662_0: imx662_mipi@1a {
-				compatible = "framos,imx662";
+			framos_dser_a: max96792_a@6a {
+				compatible = "framos,max96792";
+				reg = <0x6a>;
+				csi-mode = "2x4";
+				max-src = <1>;
+				reset-gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
+			};
+			framos_ser_prim_a: max96793_prim_a@42 { //i2c serializer physical address
+				compatible = "framos,max96793";
+				reg = <0x42>;
+				gmsl-dser-device = <&framos_dser_a>;
+				is-prim-ser;
+			};
+
+			imx900_0: imx900_mipi@1a {
+				compatible = "framos,imx900";
 				reg = <0x1a>;
+				def-addr = <0x1a>;
+				gmsl = "gmsl";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_csi0_pwn>, <&pinctrl_csi0_rst>, <&pinctrl_csi_mclk>;
 				clocks = <&clk IMX8MP_CLK_IPP_DO_CLKO2>;
 				clock-names = "csi_mclk";
+				gmsl-ser-device = <&framos_ser_prim_a>;
+				gmsl-dser-device = <&framos_dser_a>;
 				csi_id = <0>;
-				rst-gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 				mipi_csi;
 				status = "okay";
 
 				port {
-					imx662_mipi_0_ep: endpoint {
+					imx900_mipi_0_ep: endpoint {
 						remote-endpoint = <&mipi_csi0_ep>;
 						data-lanes = <1 2 3 4>;
 						clock-lanes = <0>;
 						max-pixel-frequency = /bits/ 64 <500000000>;
 					};
+				};
+				gmsl-link {
+					src-csi-port = "b";
+					dst-csi-port = "a";
+					serdes-csi-link = "a";
+					csi-mode = "1x4";
+					st-vc = <0>;
+					vc-id = <0>;
+					num-lanes = <4>;
+					streams = "raw12";
 				};
 			};
 		};
@@ -98,7 +125,7 @@
 
 	port {
 		mipi_csi0_ep: endpoint {
-			remote-endpoint = <&imx662_mipi_0_ep>;
+			remote-endpoint = <&imx900_mipi_0_ep>;
 			data-lanes = <4>;
 			csis-hs-settle = <13>;
 			csis-clk-settle = <2>;

@@ -1,9 +1,9 @@
 PWD := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+TARGET = imx900
 
-TARGET = imx676
+obj-m += $(TARGET).o
 
-obj-m +=$(TARGET).o
-$(TARGET)-objs += imx676_mipi.o
+$(TARGET)-objs += imx900_mipi.o
 
 ccflags-y += -I$(PWD)/../../../common/ -I$(PWD)/../max9679x/
 ccflags-y += -O2 -Werror

@@ -53,7 +53,7 @@ write_default_mode_files () {
 	echo "[mode.2]" >> IMX662_MODES.txt
 	echo "xml = \"IMX662_Basic_960x540.xml\"" >> IMX662_MODES.txt
 	echo "dwe = \"dewarp_config/sensor_dwe_IMX662_Basic_960x540.json\"" >> IMX662_MODES.txt
-    	echo "[mode.3]" >> IMX662_MODES.txt
+	echo "[mode.3]" >> IMX662_MODES.txt
 	echo "xml = \"IMX662_Basic_640x480.xml\"" >> IMX662_MODES.txt
 	echo "dwe = \"dewarp_config/sensor_dwe_IMX662_Basic_640x480.json\"" >> IMX662_MODES.txt
 	# IMX676 modes file
@@ -78,6 +78,23 @@ write_default_mode_files () {
 	echo "[mode.1]" >> IMX678_MODES.txt
 	echo "xml = \"IMX678_Basic_1920x1080.xml\"" >> IMX678_MODES.txt
 	echo "dwe = \"dewarp_config/sensor_dwe_IMX678_Basic_1920x1080.json\"" >> IMX678_MODES.txt
+	# IMX900 modes file
+	echo -n "" > IMX900_MODES.txt
+	echo "[mode.0]" >> IMX900_MODES.txt
+	echo "xml = \"IMX900_Basic_2048x1536.xml\"" >> IMX900_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX900_Basic_2048x1536.json\"" >> IMX900_MODES.txt
+	echo "[mode.1]" >> IMX900_MODES.txt
+	echo "xml = \"IMX900_Basic_1920x1080.xml\"" >> IMX900_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX900_Basic_1920x1080.json\"" >> IMX900_MODES.txt
+	echo "[mode.2]" >> IMX900_MODES.txt
+	echo "xml = \"IMX900_Basic_1024x768.xml\"" >> IMX900_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX900_Basic_1024x768.json\"" >> IMX900_MODES.txt
+	echo "[mode.3]" >> IMX900_MODES.txt
+	echo "xml = \"IMX900_Basic_2048x154.xml\"" >> IMX900_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX900_Basic_2048x154.json\"" >> IMX900_MODES.txt
+	echo "[mode.4]" >> IMX900_MODES.txt
+	echo "xml = \"IMX900_Basic_1008x704.xml\"" >> IMX900_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX900_Basic_1008x704.json\"" >> IMX900_MODES.txt
 }
 
 # write the sensonr config file
@@ -185,10 +202,10 @@ load_modules () {
 write_default_mode_files
 
 echo "Trying configuration \"$ISP_CONFIG\"..."
-MODULES_TO_REMOVE=("imx662" "imx676" "imx678" "${MODULES[@]}")
 case "$ISP_CONFIG" in
 		imx662 )
-			MODULES=("imx662" "${MODULES[@]}")
+			MODULES_TO_REMOVE=("max96792" "max96793" "imx662" "${MODULES[@]}")
+			MODULES=("max96792" "max96793" "imx662" "${MODULES[@]}")
 			RUN_OPTION="CAMERA0"
 			CAM_NAME="imx662"
 			DRV_FILE="imx662.drv"
@@ -197,7 +214,8 @@ case "$ISP_CONFIG" in
 			write_sensor_cfg_file "Sensor0_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
 			;;
 		dual_imx662 )
-			MODULES=("imx662" "${MODULES[@]}")
+			MODULES_TO_REMOVE=("max96792" "max96793" "imx662" "${MODULES[@]}")
+			MODULES=("max96792" "max96793" "imx662" "${MODULES[@]}")
 			RUN_OPTION="DUAL_CAMERA"
 			CAM_NAME="imx662"
 			DRV_FILE="imx662.drv"
@@ -207,7 +225,8 @@ case "$ISP_CONFIG" in
 			write_sensor_cfg_file "Sensor1_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
 			;;
 		imx676_4k )
-			MODULES=("imx676" "${MODULES[@]}")
+			MODULES_TO_REMOVE=("max96792" "max96793" "imx676" "${MODULES[@]}")
+			MODULES=("max96792" "max96793" "imx676" "${MODULES[@]}")
 			RUN_OPTION="CAMERA0"
 			CAM_NAME="imx676"
 			DRV_FILE="imx676.drv"
@@ -217,7 +236,8 @@ case "$ISP_CONFIG" in
 			;;
 
 		dual_imx676_4k )
-			MODULES=("imx676" "${MODULES[@]}")
+			MODULES_TO_REMOVE=("max96792" "max96793" "imx676" "${MODULES[@]}")
+			MODULES=("max96792" "max96793" "imx676" "${MODULES[@]}")
 			RUN_OPTION="DUAL_CAMERA"
 			CAM_NAME="imx676"
 			DRV_FILE="imx676.drv"
@@ -227,7 +247,8 @@ case "$ISP_CONFIG" in
 			write_sensor_cfg_file "Sensor1_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
 			;;
 		imx678_4k )
-			MODULES=("imx678" "${MODULES[@]}")
+			MODULES_TO_REMOVE=("max96792" "max96793" "imx678" "${MODULES[@]}")
+			MODULES=("max96792" "max96793" "imx678" "${MODULES[@]}")
 			RUN_OPTION="CAMERA0"
 			CAM_NAME="imx678"
 			DRV_FILE="imx678.drv"
@@ -236,11 +257,33 @@ case "$ISP_CONFIG" in
 			write_sensor_cfg_file "Sensor0_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
 			;;
 		dual_imx678_4k )
-			MODULES=("imx678" "${MODULES[@]}")
+			MODULES_TO_REMOVE=("max96792" "max96793" "imx678" "${MODULES[@]}")
+			MODULES=("max96792" "max96793" "imx678" "${MODULES[@]}")
 			RUN_OPTION="DUAL_CAMERA"
 			CAM_NAME="imx678"
 			DRV_FILE="imx678.drv"
 			MODE_FILE="IMX678_MODES.txt"
+			MODE="1"
+			write_sensor_cfg_file "Sensor0_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
+			write_sensor_cfg_file "Sensor1_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
+			;;
+		imx900_2k )
+			MODULES_TO_REMOVE=("max96792" "max96793" "imx900" "${MODULES[@]}")
+			MODULES=("max96792" "max96793" "imx900" "${MODULES[@]}")
+			RUN_OPTION="CAMERA0"
+			CAM_NAME="imx900"
+			DRV_FILE="imx900.drv"
+			MODE_FILE="IMX900_MODES.txt"
+			MODE="0"
+			write_sensor_cfg_file "Sensor0_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
+			;;
+		dual_imx900_2k )
+			MODULES_TO_REMOVE=("max96792" "max96793" "imx900" "${MODULES[@]}")
+			MODULES=("max96792" "max96793" "imx900" "${MODULES[@]}")
+			RUN_OPTION="DUAL_CAMERA"
+			CAM_NAME="imx900"
+			DRV_FILE="imx900.drv"
+			MODE_FILE="IMX900_MODES.txt"
 			MODE="1"
 			write_sensor_cfg_file "Sensor0_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
 			write_sensor_cfg_file "Sensor1_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE

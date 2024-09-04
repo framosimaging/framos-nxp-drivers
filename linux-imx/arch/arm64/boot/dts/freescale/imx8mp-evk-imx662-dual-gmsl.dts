@@ -42,15 +42,33 @@
 			#size-cells = <0>;
 			status = "okay";
 
+			framos_dser_a: max96792_a@6a {
+				compatible = "framos,max96792";
+				reg = <0x6a>;
+				csi-mode = "2x4";
+				max-src = <1>;
+				reset-gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
+			};
+			framos_ser_prim_a: max96793_prim_a@42 { //i2c serializer physical address
+				compatible = "framos,max96793";
+				reg = <0x42>;
+				gmsl-dser-device = <&framos_dser_a>;
+				is-prim-ser;
+			};
+
 			imx662_0: imx662_mipi@1a {
 				compatible = "framos,imx662";
 				reg = <0x1a>;
+				def-addr = <0x1a>;
+				gmsl = "gmsl";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_csi0_pwn>, <&pinctrl_csi0_rst>, <&pinctrl_csi_mclk>;
 				clocks = <&clk IMX8MP_CLK_IPP_DO_CLKO2>;
 				clock-names = "csi_mclk";
+				gmsl-ser-device = <&framos_ser_prim_a>;
+				gmsl-dser-device = <&framos_dser_a>;
 				csi_id = <0>;
-				rst-gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
+				mipi_csi;
 				status = "okay";
 
 				port {
@@ -60,6 +78,16 @@
 						clock-lanes = <0>;
 						max-pixel-frequency = /bits/ 64 <266000000>;
 					};
+				};
+				gmsl-link {
+					src-csi-port = "b";
+					dst-csi-port = "a";
+					serdes-csi-link = "a";
+					csi-mode = "1x4";
+					st-vc = <0>;
+					vc-id = <0>;
+					num-lanes = <4>;
+					streams = "raw12";
 				};
 			};
 		};
@@ -90,31 +118,48 @@
 			#size-cells = <0>;
 			status = "okay";
 
-			tca6408_20_i2c0: tca6408@20 {
+			framos_dser_b: max96792_b@6a {
+				compatible = "framos,max96792";
+				reg = <0x6a>;
+				csi-mode = "2x4";
+				max-src = <1>;
+				reset-gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
+			};
+			framos_ser_prim_b: max96793_prim_b@42 { //i2c serializer physical address
+				compatible = "framos,max96793";
+				reg = <0x42>;
+				gmsl-dser-device = <&framos_dser_b>;
+				is-prim-ser;
+			};
+
+			tca6408_21_i2c0: tca6408@21 {
 				compatible = "ti,tca6408";
 				gpio-controller;
 				#gpio-cells = <2>;
-				reg = <0x20>;
+				reg = <0x21>;
 				status = "okay";
 				/*
-				 * P2: SLAMODE0
-				 */
-				tca6408_20_i2c0_slamode0 {
-					gpio-hog;
-					output-high;
-					gpios = <SLAMODE0 0>;
-					label = "slamode0";
-					status = "okay";
-				};
+		 		* P2: SLAMODE0
+		 		*/
+			tca6408_21_i2c0_slamode0 {
+				gpio-hog;
+				output-high;
+				gpios = <SLAMODE0 0>;
+				label = "slamode0";
+				status = "okay";
 			};
+		};
 
-			imx662_1: imx662_mipi@10 {
+		imx662_1: imx662_mipi@10 {
 				compatible = "framos,imx662";
 				reg = <0x10>;
+				def-addr = <0x10>;
+				gmsl = "gmsl";
 				clocks = <&clk IMX8MP_CLK_IPP_DO_CLKO2>;
 				clock-names = "csi_mclk";
+				gmsl-ser-device = <&framos_ser_prim_b>;
+				gmsl-dser-device = <&framos_dser_b>;
 				csi_id = <1>;
-				rst-gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 				status = "okay";
 
 				port {
@@ -124,6 +169,16 @@
 						clock-lanes = <0>;
 						max-pixel-frequency = /bits/ 64 <266000000>;
 					};
+				};
+			gmsl-link {
+				src-csi-port = "b";
+				dst-csi-port = "a";
+				serdes-csi-link = "a";
+				csi-mode = "1x4";
+				st-vc = <0>;
+				vc-id = <0>;
+				num-lanes = <4>;
+				streams = "raw12";
 				};
 			};
 		};
