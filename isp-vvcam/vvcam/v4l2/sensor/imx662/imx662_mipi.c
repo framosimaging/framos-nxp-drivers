@@ -11,8 +11,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-//TODO: remove debug
-#define DEBUG 1
+//#define DEBUG 1
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/of_graph.h>

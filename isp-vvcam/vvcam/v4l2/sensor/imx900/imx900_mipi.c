@@ -10,6 +10,7 @@
  * http://www.opensource.org/licenses/gpl-license.html
  * http://www.gnu.org/copyleft/gpl.html
  */
+
 // #define DEBUG 1
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -1412,7 +1413,7 @@ static int imx900_change_data_rate(struct imx900 *sensor, u32 data_rate)
 		ret = imx900_write_reg_arry(sensor, (struct vvcam_sccb_data_s *)imx900_594_mbps, ARRAY_SIZE(imx900_594_mbps));
 		break;
 	}
-	if (!strcmp(sensor->gmsl,"gmsl")) {
+	if (!strcmp(sensor->gmsl, "gmsl")) {
 		pr_debug("%s: Setting dser clock for data rate %u\n", __func__, data_rate);
 		ret |= max96792_set_deser_clock(sensor->dser_dev, data_rate);
 	}
@@ -1474,6 +1475,7 @@ static int imx900_set_data_rate(struct imx900 *sensor, u32 data_rate)
 {
 	int ret = 0;
 	bool stream_enabled = sensor->stream_status;
+
 	pr_info("enter %s data rate received: %u\n", __func__, data_rate);
 
 	if (stream_enabled)

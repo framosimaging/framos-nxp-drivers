@@ -5,7 +5,7 @@
  * imx676_mipi.c - Framos imx676_mipi.c driver
  */
 
-#define DEBUG 1
+//#define DEBUG 1
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/of_graph.h>
