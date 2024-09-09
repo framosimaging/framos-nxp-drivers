@@ -37,7 +37,7 @@ Prerequisites:
     ```
     cd ~
     
-    git clone https://github.com/framosgmbh/framos-nxp-drivers
+    git clone https://github.com/framosimaging/framos-nxp-drivers
     ```
 3. Copy & replace NXP clean source files & folders with Framos modified files & folders from github:
     ```
