@@ -1,6 +1,44 @@
 Supported NXP platforms:
   - i.MX 8M Plus EVK
 
+# Flashing platform
+
+Flash SD card with image from [i.MX 8M Plus EVK Image for NXP kernel Linux 6.6.3_1.0.0](https://www.nxp.com/design/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX).
+   - Direct link to the image is [here](https://www.nxp.com/webapp/sps/download/license.jsp?colCode=L6.6.3_1.0.0_MX8MP&appType=file1&DOWNLOAD_ID=null), the documentation can be found at the same link.
+   - For ﬂashing and booting instructions follow section 4.3 and 4.5 in Linux User Guide in the documentation. Alternatively, you can use [Balena Etcher](https://etcher.balena.io/) tool to ﬂash one of the following images:
+       - imx-image-multimedia-imx8mpevk.wic
+       - imx-image-full-imx8mpevk.wic
+   - Set SW4 switch to 0011 on the board and connect to the platform debug port via USB to the host and then connect to target using serial port (we used Teraterm with 115200 bauds).
+
+# Installing binaries
+
+If you just want to install the drivers you can use binary packages.
+- Download `Framos-iMX8MP-Driver-Binary_v*.tar.gz` file from [release page](https://github.com/framosimaging/framos-nxp-drivers/releases)
+and copy it to target at `/home/root`. Extract the archive with:
+    ```bash
+    tar xvzfp Framos-iMX*.tar.gz
+    ```
+
+- Enter package directory and run install.sh script:
+
+    ```bash
+    cd ./package
+    source ./install.sh
+    ```
+
+- All FSM:GO sensors are installed now. To set up device tree reboot the target and press any key from terminal to enter u-boot. Then set the appropriate device tree as fdtfile (`imx8mp-evk-imx662.dtb` for single imx662 sensor, `imx8mp-evk-imx662-dual.dtb` for two sensors, `imx8mp-evk-imx662-gmsl.dtb` for singe sensor using gmsl and `imx8mp-evk-imx662-dual-gmsl.dtb` for two sensors using gmsl):
+
+    ```bash
+    setenv fdtfile imx8mp-evk-imx900.dtb
+    setenv fdtfile imx8mp-evk-imx900-dual.dtb
+    setenv fdtfile imx8mp-evk-imx900-gmsl.dtb
+    setenv fdtfile imx8mp-evk-imx900-dual-gmsl.dtb
+    saveenv
+    boot
+    ```
+
+skip to [test streaming section](#Test-streaming-and-mode-switching-on-target) to obtain the stream.
+
 # Compiling on host and installation on target
 ## Procedure:
 Prerequisites:
@@ -68,12 +106,9 @@ Prerequisites:
     export KERNEL_SOURCE_DIR=$NXP_DIR/linux-imx
     ./build-all-vvcam.sh
     ```
-8. Flash SD card with image from [i.MX 8M Plus EVK Image for NXP kernel Linux 6.6.3_1.0.0](https://www.nxp.com/design/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX).
-   - Direct link to the image is [here](https://www.nxp.com/webapp/sps/download/license.jsp?colCode=L6.6.3_1.0.0_MX8MP&appType=file1&DOWNLOAD_ID=null), the documentation can be found at the same link.
-   - For ﬂashing and booting instructions follow section 4.3 and 4.5 in Linux User Guide in the documentation. Alternatively, you can use [Balena Etcher](https://etcher.balena.io/) tool to ﬂash one of the following images:
-       - imx-image-multimedia-imx8mpevk.wic
-       - imx-image-full-imx8mpevk.wic
-   - Set SW4 switch to 0011 on the board and connect to the platform debug port via USB to the host and then connect to target using serial port (we used Teraterm with 115200 bauds).
+
+8. Flash the SD card following [instructions](#flashing-platform)
+
 9. Copy needed files and folders from host to target:
     ```
     cd $NXP_DIR
