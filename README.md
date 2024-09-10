@@ -29,10 +29,7 @@ and copy it to target at `/home/root`. Extract the archive with:
 - All FSM:GO sensors are installed now. To set up device tree reboot the target and press any key from terminal to enter u-boot. Then set the appropriate device tree as fdtfile (`imx8mp-evk-imx662.dtb` for single imx662 sensor, `imx8mp-evk-imx662-dual.dtb` for two sensors, `imx8mp-evk-imx662-gmsl.dtb` for singe sensor using gmsl and `imx8mp-evk-imx662-dual-gmsl.dtb` for two sensors using gmsl):
 
     ```bash
-    setenv fdtfile imx8mp-evk-imx900.dtb
-    setenv fdtfile imx8mp-evk-imx900-dual.dtb
-    setenv fdtfile imx8mp-evk-imx900-gmsl.dtb
-    setenv fdtfile imx8mp-evk-imx900-dual-gmsl.dtb
+    setenv fdtfile imx8mp-evk-imx662.dtb
     saveenv
     boot
     ```
