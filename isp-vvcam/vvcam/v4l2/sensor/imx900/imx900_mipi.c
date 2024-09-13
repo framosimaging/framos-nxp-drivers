@@ -53,9 +53,7 @@
 #define IMX900_MAX_GAIN_DEC 480
 #define IMX900_MAX_GAIN_DB  48
 
-#define IMX900_MAX_BLACK_LEVEL_8BPP		255
-#define IMX900_MAX_BLACK_LEVEL_10BPP		1023
-#define IMX900_MAX_BLACK_LEVEL_12BPP		4095
+#define IMX900_MAX_BLACK_LEVEL			4095
 #define IMX900_DEFAULT_BLACK_LEVEL_8BPP		15
 #define IMX900_DEFAULT_BLACK_LEVEL_10BPP	60
 #define IMX900_DEFAULT_BLACK_LEVEL_12BPP	240
@@ -1748,18 +1746,12 @@ static int imx900_set_gain(struct imx900 *sensor, u32 gain, unsigned int which_c
 static int imx900_set_black_level(struct imx900 *sensor, s64 val, u32 which_control)
 {
 	int ret = 0;
-	s64 black_level_reg;
 
-	pr_info("enter %s black level: %lld\n",  __func__, val);
-
-	if (sensor->format.code == MEDIA_BUS_FMT_SRGGB10_1X10)
-		black_level_reg = val;
-	else
-		black_level_reg = val >> 2;
+	pr_info("enter %s black level: %lld from %u\n",  __func__, val, which_control);
 
 	ret = imx900_write_reg(sensor, REGHOLD, 1);
-	ret |= imx900_write_reg(sensor, BLKLEVEL_HIGH, (black_level_reg>>8) & 0xff);
-	ret |= imx900_write_reg(sensor, BLKLEVEL_LOW, black_level_reg & 0xff);
+	ret |= imx900_write_reg(sensor, BLKLEVEL_HIGH, (val>>8) & 0xff);
+	ret |= imx900_write_reg(sensor, BLKLEVEL_LOW, val & 0xff);
 	ret |= imx900_write_reg(sensor, REGHOLD, 0);
 	if (ret) {
 		pr_err("%s: BLACK LEVEL control error\n", __func__);
@@ -3213,6 +3205,7 @@ static int imx900_probe(struct i2c_client *client)
 	const char *str_value1[2];
 	int  i;
 	int err = 0;
+	int default_black_level;
 
 	pr_debug("enter %s function\n", __func__);
 
@@ -3497,8 +3490,16 @@ static int imx900_probe(struct i2c_client *client)
 					3, 30000, 1, 1000);
 	sensor->ctrls.gain = v4l2_ctrl_new_std(&sensor->ctrls.handler, &imx900_ctrl_ops, V4L2_CID_GAIN,
 					0, 480, 1, 0);
+	
+	if (sensor->cur_mode.bit_width == 12) {
+		default_black_level = IMX900_DEFAULT_BLACK_LEVEL_12BPP;
+	}
+	else {
+		default_black_level = IMX900_DEFAULT_BLACK_LEVEL_10BPP;
+	}
+
 	sensor->ctrls.black_level = v4l2_ctrl_new_std(&sensor->ctrls.handler, &imx900_ctrl_ops, V4L2_CID_BLACK_LEVEL,
-					0, 4095, 1, 240);
+					0, IMX900_MAX_BLACK_LEVEL, 1, default_black_level);
 	sensor->ctrls.data_rate = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx900_ctrl_data_rate, NULL);
 	//sensor->ctrls.sync_mode = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx900_ctrl_sync_mode, NULL);
 	sensor->ctrls.framerate = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx900_ctrl_framerate, NULL);
