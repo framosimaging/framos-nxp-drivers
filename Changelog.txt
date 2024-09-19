@@ -1,0 +1,41 @@
+Framos_v2.0.0 (2024-07-04)
+=========================
+	- support for kernel 6.6.3
+	- FSM:GO modules supported
+		- IMX662
+		- IMX676
+		- IMX678
+		- IMX900
+	- GMSL supported
+
+
+Framos_v1.1.0 (2024-07-04)
+=========================
+	- support for kernel 6.6.3
+
+Framos_v1.0.2 (2024-03-08)
+=========================
+	- fixed - set_gain function - computation of gains changed
+	- gain bounds changed to fix low exposure bug
+
+Framos_v1.0.1 (2024-02-07)
+=========================
+	- fixed - start exposure for FSM:GO sensors
+			- register address for gpio expander in dual device trees
+
+Framos_v1.0.0 (2024-01-26)
+=========================
+	- support for kernel 5.15.52
+	- supported features:
+		- Gain
+		- Frame rate
+		- Exposure
+		- Black level
+		- Test Pattern		
+		- Data rate
+		- Synchronizing Master mode
+
+Versioning system guide (since v2.0.0):
+	MAJOR - change kernel version (fist number)
+	MINOR - new feature, changing kernel (second number)
+	PATCH - everything else 
