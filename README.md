@@ -1,18 +1,20 @@
-Supported NXP platforms:
-  - i.MX 8M Plus EVK
+# Framos implementation of image sensor drivers for NXP platform
 
-# Flashing platform
+This repository contains source implementation and binary package for [Framos General Optics modules FSM:GO  ](https://www.framos.com/en/fsmgo?utm_source=google&utm_medium=cpc&utm_campaign=FSM-GO_Product_Launch_2024). Here the implementation for Sony sensors imx662, imx676, imx678 and imx900 is provided with instructions on how to setup a platform, install binaries, compile sources and run a video stream on NXP platform.
+Currently, only i.MX 8M Plus EVK platform is supported.
 
-Flash SD card with image from [i.MX 8M Plus EVK Image for NXP kernel Linux 6.6.3_1.0.0](https://www.nxp.com/design/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX).
-   - Direct link to the image is [here](https://www.nxp.com/webapp/sps/download/license.jsp?colCode=L6.6.3_1.0.0_MX8MP&appType=file1&DOWNLOAD_ID=null), the documentation can be found at the same link.
-   - For ﬂashing and booting instructions follow section 4.3 and 4.5 in Linux User Guide in the documentation. Alternatively, you can use [Balena Etcher](https://etcher.balena.io/) tool to ﬂash one of the following images:
+## Flashing platform
+
+In order to install binaries one needs to prepare NXP platform. The full documentation is given at [i.MX 8M Plus EVK Image for NXP kernel Linux 6.6.3_1.0.0](https://www.nxp.com/design/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX). In order to flash SD Card:
+   - Download the [image](https://www.nxp.com/webapp/sps/download/license.jsp?colCode=L6.6.3_1.0.0_MX8MP&appType=file1&DOWNLOAD_ID=null).
+   - For ﬂashing and booting instructions follow section 4.3 and 4.5 in Linux User Guide in the [documentation](https://www.nxp.com/webapp/Download?colCode=L6.6.3_1.0.0_Docs&location=null). Alternatively, you can use [Balena Etcher](https://etcher.balena.io/) tool to ﬂash one of the following images:
        - imx-image-multimedia-imx8mpevk.wic
        - imx-image-full-imx8mpevk.wic
    - Set SW4 switch to 0011 on the board and connect to the platform debug port via USB to the host and then connect to target using serial port (we used Teraterm with 115200 bauds).
 
-# Installing binaries
+## Installing binaries
 
-If you just want to install the drivers you can use binary packages.
+If you just want to install the drivers without adapting the source code use binary packages.
 - Download `Framos-iMX8MP-Driver-Binary_v*.tar.gz` file from [release page](https://github.com/framosimaging/framos-nxp-drivers/releases)
 and copy it to target at `/home/root`. Extract the archive with:
     ```bash
@@ -36,8 +38,8 @@ and copy it to target at `/home/root`. Extract the archive with:
 
 skip to [test streaming section](#Test-streaming-and-mode-switching-on-target) to obtain the stream.
 
-# Compiling on host and installation on target
-## Procedure:
+## Compiling on host and installation on target
+### Procedure:
 Prerequisites:
 - Installed Ubuntu 20.04 OS or higher on Host System.
 - Downloaded NXP documentation for [Linux version 6.6.3_1.0.0](https://www.nxp.com/design/design-center/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX).
@@ -119,7 +121,7 @@ Prerequisites:
     boot
     ```
 
-# Test streaming and mode switching on target
+## Test streaming and mode switching on target
 - If you are using only one sensor make sure to use CSI1 port.
 - To test that everything is working as expected run:
   ```
