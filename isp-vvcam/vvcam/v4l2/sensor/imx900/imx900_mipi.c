@@ -339,8 +339,8 @@ static struct vvcam_mode_info_s pimx900_mode_info[] = {
 			.gain_step			= 36,
 
 			.start_exposure			= 500,	  //3 * 400 * 1024,
-			.cur_fps			= 72 * 1024,
-			.max_fps			= 72 * 1024,
+			.cur_fps			= 99 * 1024,
+			.max_fps			= 99 * 1024,
 			.min_fps			= 5 * 1024,
 			.min_afps			= 5 * 1024,
 			.int_update_delay_frm  = 1,
@@ -383,8 +383,8 @@ static struct vvcam_mode_info_s pimx900_mode_info[] = {
 			.gain_step			= 36,
 
 			.start_exposure			= 500,//3 * 400 * 1024,
-			.cur_fps			= 102 * 1024,
-			.max_fps			= 102 * 1024,
+			.cur_fps			= 135 * 1024,
+			.max_fps			= 135 * 1024, // 240 for mono
 			.min_fps			= 5 * 1024,
 			.min_afps			= 5 * 1024,
 			.int_update_delay_frm  = 1,
@@ -420,17 +420,17 @@ static struct vvcam_mode_info_s pimx900_mode_info[] = {
 			.max_integration_line  = IMX900_MAX_BOUNDS_HEIGHT - 1,
 			.min_integration_line  = IMX900_MIN_INTEGRATION_LINES,
 
-			.max_again			 = 16229,	// 24db
-			.min_again			 = 1024,	 // 0 db
-			.max_dgain			 = 257217,   // 48 db
-			.min_dgain			 = 1024,	 // 0db ,
-			.gain_step			 = 36,
+			.max_again		 = 16229,	// 24db
+			.min_again		 = 1024,	 // 0 db
+			.max_dgain		 = 257217,   // 48 db
+			.min_dgain		 = 1024,	 // 0db ,
+			.gain_step		 = 36,
 
 			.start_exposure		 = 500,//3 * 400 * 1024,
-			.cur_fps			 = 205 * 1024,
-			.max_fps			 = 205 * 1024,
-			.min_fps			 = 5 * 1024,
-			.min_afps			 = 5 * 1024,
+			.cur_fps		 = 450 * 1024,
+			.max_fps		 = 450 * 1024,
+			.min_fps		 = 5 * 1024,
+			.min_afps		 = 5 * 1024,
 			.int_update_delay_frm  = 1,
 			.gain_update_delay_frm = 1,
 		},
@@ -457,24 +457,24 @@ static struct vvcam_mode_info_s pimx900_mode_info[] = {
 		},
 		.bayer_pattern = BAYER_GBRG,
 		.ae_info = {
-			.def_frm_len_lines	 = IMX900_MAX_BOUNDS_HEIGHT,
+			.def_frm_len_lines	= IMX900_MAX_BOUNDS_HEIGHT,
 			.curr_frm_len_lines	= IMX900_MAX_BOUNDS_HEIGHT,
-			.one_line_exp_time_ns  = IMX900_LINE_TIME,
+			.one_line_exp_time_ns   = IMX900_LINE_TIME,
 
-			.max_integration_line  = IMX900_MAX_BOUNDS_HEIGHT - 1,
-			.min_integration_line  = IMX900_MIN_INTEGRATION_LINES,
+			.max_integration_line   = IMX900_MAX_BOUNDS_HEIGHT - 1,
+			.min_integration_line   = IMX900_MIN_INTEGRATION_LINES,
 
-			.max_again			= 16229,	// 24db
-			.min_again			= 1024,	 // 0 db
-			.max_dgain			= 257217,   // 48 db
-			.min_dgain			= 1024,	 // 0db ,
-			.gain_step			= 36,
+			.max_again		= 16229,  // 24db
+			.min_again		= 1024,	  // 0 db
+			.max_dgain		= 257217, // 48 db
+			.min_dgain		= 1024,	  // 0db ,
+			.gain_step		= 36,
 
 			.start_exposure		= 500,//3 * 400 * 1024,
-			.cur_fps			= 205 * 1024,
-			.max_fps			= 205 * 1024,
-			.min_fps			= 5 * 1024,
-			.min_afps			= 5 * 1024,
+			.cur_fps		= 249 * 1024,
+			.max_fps		= 249 * 1024,
+			.min_fps		= 5 * 1024,
+			.min_afps		= 5 * 1024,
 			.int_update_delay_frm  = 1,
 			.gain_update_delay_frm = 1,
 		},
@@ -685,7 +685,7 @@ static int imx900_chromacity_mode(struct imx900 *sensor)
 	chromacity = chromacity >> 7;
 	sensor->chromacity = chromacity;
 
-	pr_info("%s: sensor is color(0)/monochrome(1): %d\n", __func__, chromacity);
+	pr_debug("%s: sensor is color(0)/monochrome(1): %d\n", __func__, chromacity);
 
 	return err;
 }
@@ -951,7 +951,7 @@ static int imx900_adjust_hmax_register(struct imx900 *sensor)
 	u32 hmax = 0x262;
 	u8 data_rate, numlanes;
 
-	pr_info("%s:++\n", __func__);
+	pr_debug("%s:++\n", __func__);
 
 	err = imx900_get_current_datarate(sensor, &data_rate);
 	pr_debug("%s: current datarate is equal to %d\n", __func__, data_rate);
@@ -966,8 +966,22 @@ static int imx900_adjust_hmax_register(struct imx900 *sensor)
 		return err;
 	}
 
-	sensor->format.code = MEDIA_BUS_FMT_SRGGB12_1X12;
-	pr_info("%s sensor->format.code = %d\n", __func__, sensor->format.code);
+	if ((sensor->cur_mode.bit_width == 12) && (sensor->cur_mode.bayer_pattern == BAYER_RGGB))
+		sensor->format.code = MEDIA_BUS_FMT_SRGGB12_1X12;
+	else if ((sensor->cur_mode.bit_width == 12) && (sensor->cur_mode.bayer_pattern == BAYER_GBRG))
+		sensor->format.code = MEDIA_BUS_FMT_SGBRG12_1X12;
+	else if ((sensor->cur_mode.bit_width == 10) && (sensor->cur_mode.bayer_pattern == BAYER_RGGB))
+		sensor->format.code = MEDIA_BUS_FMT_SRGGB10_1X10;
+	else if ((sensor->cur_mode.bit_width == 10) && (sensor->cur_mode.bayer_pattern == BAYER_GBRG))
+		sensor->format.code = MEDIA_BUS_FMT_SGBRG10_1X10;
+	else {
+		pr_err("%s Invalid sensor->format.code: %d or bayer pattern : %d\n",
+			__func__,
+			sensor->format.code,
+			sensor->cur_mode.bayer_pattern);
+		return -EINVAL;
+	}
+
 
 	switch (data_rate) {
 	case IMX900_2376_MBPS:
@@ -1376,7 +1390,7 @@ static int imx900_adjust_hmax_register(struct imx900 *sensor)
 
 	sensor->cur_mode.ae_info.one_line_exp_time_ns = (hmax*IMX900_G_FACTOR) / IMX900_1ST_INCK;
 
-	pr_info("%s:  HMAX: %u\n", __func__, hmax);
+	pr_debug("%s:  HMAX: %u\n", __func__, hmax);
 
 	return 0;
 }
@@ -1386,12 +1400,12 @@ static int imx900_change_data_rate(struct imx900 *sensor, u32 data_rate)
 	int ret = 0;
 	u8 current_lane_mode;
 
-	pr_info("%s++\n", __func__);
+	pr_debug("%s++\n", __func__);
 
 	ret = imx900_read_reg(sensor, LANESEL, &current_lane_mode);
 
 	if (current_lane_mode == IMX900_ONE_LANE_MODE || current_lane_mode == IMX900_TWO_LANE_MODE) {
-		pr_info("%s: 1 and 2 lane modes are not supported, switching to 4 lane mode\n", __func__);
+		pr_warn("%s: 1 and 2 lane modes are not supported, switching to 4 lane mode\n", __func__);
 		imx900_write_reg(sensor, LANESEL, IMX900_MAX_CSI_LANES);
 	}
 
@@ -1474,7 +1488,7 @@ static int imx900_set_data_rate(struct imx900 *sensor, u32 data_rate)
 	int ret = 0;
 	bool stream_enabled = sensor->stream_status;
 
-	pr_info("enter %s data rate received: %u\n", __func__, data_rate);
+	pr_debug("enter %s data rate received: %u\n", __func__, data_rate);
 
 	if (stream_enabled)
 		imx900_s_stream(&sensor->sd, 0);
@@ -1482,7 +1496,7 @@ static int imx900_set_data_rate(struct imx900 *sensor, u32 data_rate)
 	ret = imx900_change_data_rate(sensor, data_rate);
 	if (ret) {
 		pr_err("%s: unable to set data rate\n", __func__);
-		goto fail;
+		return ret;
 	}
 
 	ret = imx900_adjust_hmax_register(sensor);
@@ -1500,10 +1514,6 @@ static int imx900_set_data_rate(struct imx900 *sensor, u32 data_rate)
 	if (stream_enabled)
 		imx900_s_stream(&sensor->sd, 1);
 
-	return ret;
-
-fail:
-	pr_info("%s: unable to set data rate\n", __func__);
 	return ret;
 }
 
@@ -1528,7 +1538,7 @@ static int imx900_configure_shutter(struct imx900 *sensor)
 	case NORMAL_EXPO:
 		trigen = 0;
 		vint_en = 2;
-		pr_info("%s: Sensor is in Normal Exposure Mode\n", __func__);
+		pr_debug("%s: Sensor is in Normal Exposure Mode\n", __func__);
 		break;
 
 	case SEQ_TRIGGER:
@@ -1538,7 +1548,7 @@ static int imx900_configure_shutter(struct imx900 *sensor)
 		}
 		trigen = 9;
 		vint_en = 1;
-		pr_info("%s: Sensor is in Sequential Trigger Mode\n", __func__);
+		pr_debug("%s: Sensor is in Sequential Trigger Mode\n", __func__);
 		break;
 
 	case FAST_TRIGGER:
@@ -1547,7 +1557,7 @@ static int imx900_configure_shutter(struct imx900 *sensor)
 			break;
 		}
 		trigen = 10;
-		pr_info("%s: Sensor is in Fast Trigger Mode\n", __func__);
+		pr_debug("%s: Sensor is in Fast Trigger Mode\n", __func__);
 		break;
 
 	default:
@@ -1605,13 +1615,13 @@ static int imx900_configure_triggering_pins(struct imx900 *sensor)
 	case MASTER_MODE:
 		/* XVS - output, XHS - output */
 		sync_sel = 0xC0;
-		pr_info("%s: Sensor is in Master mode\n", __func__);
+		pr_debug("%s: Sensor is in Master mode\n", __func__);
 		break;
 
 	case SLAVE_MODE:
 		/* XVS - hi-z, XHS - hi-z */
 		sync_sel = 0xF0;
-		pr_info("%s: Sensor is in Slave mode\n", __func__);
+		pr_debug("%s: Sensor is in Slave mode\n", __func__);
 		break;
 
 	default:
@@ -1626,7 +1636,7 @@ static int imx900_configure_triggering_pins(struct imx900 *sensor)
 		return err;
 	}
 
-	pr_info("%s: XVS_XHS driver register: %x\n", __func__, sync_sel);
+	pr_debug("%s: XVS_XHS driver register: %x\n", __func__, sync_sel);
 
 	return 0;
 }
@@ -1641,7 +1651,7 @@ static int imx900_set_exp(struct imx900 *sensor, u32 exp, unsigned int which_con
 	u8 min_reg_shs;
 	u8 reg_gmrwt2, reg_gmtwt;
 
-	pr_info("enter %s exposure received: %u\n", __func__, exp);
+	pr_debug("enter %s exposure received: %u\n", __func__, exp);
 
 	frame_length = sensor->cur_mode.ae_info.curr_frm_len_lines;
 
@@ -1664,7 +1674,7 @@ static int imx900_set_exp(struct imx900 *sensor, u32 exp, unsigned int which_con
 	else if (reg_shs > (frame_length - IMX900_MIN_INTEGRATION_LINES))
 		reg_shs = frame_length - IMX900_MIN_INTEGRATION_LINES;
 
-	pr_info("enter %s exposure register: %u integration_time_line: %u frame lenght %u\n", __func__, reg_shs, integration_time_line, frame_length);
+	pr_debug("enter %s exposure register: %u integration_time_line: %u frame lenght %u\n", __func__, reg_shs, integration_time_line, frame_length);
 	ret = imx900_write_reg(sensor, REGHOLD, 1);
 	ret |= imx900_write_reg(sensor, SHS_HIGH, (reg_shs >> 16) & 0xff);
 	ret |= imx900_write_reg(sensor, SHS_MID, (reg_shs >> 8) & 0xff);
@@ -1724,7 +1734,7 @@ static int imx900_set_gain(struct imx900 *sensor, u32 gain, unsigned int which_c
 	int ret = 0;
 	u32 gain_reg = 0;
 
-	pr_info("enter %s: gain received: %u control: %u\n", __func__, gain, which_control);
+	pr_debug("enter %s: gain received: %u control: %u\n", __func__, gain, which_control);
 
 	// from ISP
 	if (which_control == 0) {
@@ -1734,7 +1744,7 @@ static int imx900_set_gain(struct imx900 *sensor, u32 gain, unsigned int which_c
 				(IMX900_MAX_GAIN_DB * 10);
 	}
 
-	pr_info("%s: gain register: %u\n", __func__, gain_reg);
+	pr_debug("%s: gain register: %u\n", __func__, gain_reg);
 	ret = imx900_write_reg(sensor, REGHOLD, 1);
 	ret |= imx900_write_reg(sensor, GAIN_HIGH, (gain_reg>>8) & 0xff);
 	ret |= imx900_write_reg(sensor, GAIN_LOW, gain_reg & 0xff);
@@ -1747,7 +1757,7 @@ static int imx900_set_black_level(struct imx900 *sensor, s64 val, u32 which_cont
 {
 	int ret = 0;
 
-	pr_info("enter %s black level: %lld from %u\n",  __func__, val, which_control);
+	pr_debug("enter %s black level: %lld from %u\n",  __func__, val, which_control);
 
 	ret = imx900_write_reg(sensor, REGHOLD, 1);
 	ret |= imx900_write_reg(sensor, BLKLEVEL_HIGH, (val>>8) & 0xff);
@@ -1770,14 +1780,14 @@ static int imx900_set_fps(struct imx900 *sensor, u32 fps, u8 which_control)
 	u8 min_reg_shs;
 	u8 reg_gmrwt2, reg_gmtwt;
 
-	pr_info("enter %s fps received: %u\n", __func__, fps);
+	pr_debug("enter %s fps received: %u\n", __func__, fps);
 	if (which_control == 1)
 		fps = fps << 10;
 
 	line_time = sensor->cur_mode.ae_info.one_line_exp_time_ns;
 
-	pr_info("%s line_time: %u\n", __func__, line_time);
-	pr_info("%s fps: %u\n", __func__, fps);
+	pr_debug("%s line_time: %u\n", __func__, line_time);
+
 
 	if (fps > sensor->cur_mode.ae_info.max_fps)
 		fps = sensor->cur_mode.ae_info.max_fps;
@@ -1785,7 +1795,7 @@ static int imx900_set_fps(struct imx900 *sensor, u32 fps, u8 which_control)
 		fps = sensor->cur_mode.ae_info.min_fps;
 
 	fps_reg = IMX900_G_FACTOR / ((fps >> 10) * line_time);
-	pr_info("enter %s vmax register: %u\n", __func__, fps_reg);
+	pr_debug("enter %s vmax register: %u\n", __func__, fps_reg);
 
 	imx900_read_reg(sensor, GMTWT, &reg_gmtwt);
 	imx900_read_reg(sensor, GMRWT2, &reg_gmrwt2);
@@ -1832,7 +1842,7 @@ static int imx900_set_test_pattern(struct imx900 *sensor, u32 val)
 {
 	int err;
 
-	pr_info("enter %s, pattern = %u\n", __func__, val);
+	pr_debug("enter %s, pattern = %u\n", __func__, val);
 
 	if (val) {
 		err = imx900_write_reg(sensor, 0x3550, 0x07);
@@ -2903,6 +2913,16 @@ static int imx900_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	sensor->format = fmt->format;
 
+	ret = imx900_write_reg_arry(sensor,
+		(struct vvcam_sccb_data_s *)sensor->cur_mode.preg_data,
+		sensor->cur_mode.reg_data_count);
+	
+	if (ret < 0) {
+		pr_err("%s:imx900_write_reg_arry error\n", __func__);
+		mutex_unlock(&sensor->lock);
+		return -EINVAL;
+	}
+
 	ret = imx900_chromacity_mode(sensor);
 	if (ret < 0) {
 		pr_err("%s:unable to get chromacity information\n", __func__);
@@ -2931,24 +2951,10 @@ static int imx900_set_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	ret = imx900_write_reg_arry(sensor,
-		(struct vvcam_sccb_data_s *)sensor->cur_mode.preg_data,
-		sensor->cur_mode.reg_data_count);
-	if (ret < 0) {
-		pr_err("%s:imx900_write_reg_arry error\n", __func__);
-		mutex_unlock(&sensor->lock);
-		return -EINVAL;
-	}
-
 	if (sensor->cur_mode.size.bounds_height == IMX900_DEFAULT_HEIGHT) {
 		ret = imx900_write_reg_arry(sensor, (struct vvcam_sccb_data_s *)mode_2064x1552, ARRAY_SIZE(mode_2064x1552));
 		if (ret < 0) {
 			pr_err("%s:imx900_write_reg_arry error, failed to set up resolution\n", __func__);
-			return -EINVAL;
-		}
-		ret = imx900_set_data_rate(sensor, IMX900_1188_MBPS);
-		if (ret < 0) {
-			pr_err("%s:imx900_write_reg_arry error, failed to set data rate\n", __func__);
 			return -EINVAL;
 		}
 	} else if (sensor->cur_mode.size.bounds_height == IMX900_ROI_MODE_HEIGHT) {
@@ -2957,20 +2963,10 @@ static int imx900_set_fmt(struct v4l2_subdev *sd,
 			pr_err("%s:imx900_write_reg_arry error, failed to set up resolution\n", __func__);
 			return -EINVAL;
 		}
-		ret = imx900_set_data_rate(sensor, IMX900_1188_MBPS);
-		if (ret < 0) {
-			pr_err("%s:imx900_write_reg_arry error, failed to set data rate\n", __func__);
-			return -EINVAL;
-		}
 	} else if (sensor->cur_mode.size.bounds_height == IMX900_SUBSAMPLING2_MODE_HEIGHT) {
 		ret = imx900_write_reg_arry(sensor, (struct vvcam_sccb_data_s *)mode_1032x776, ARRAY_SIZE(mode_1032x776));
 		if (ret < 0) {
 			pr_err("%s:imx900_write_reg_arry error, failed to set up resolution\n", __func__);
-			return -EINVAL;
-		}
-		ret = imx900_set_data_rate(sensor, IMX900_1188_MBPS);
-		if (ret < 0) {
-			pr_err("%s:imx900_write_reg_arry error, failed to set data rate\n", __func__);
 			return -EINVAL;
 		}
 	} else if (sensor->cur_mode.size.bounds_height == IMX900_SUBSAMPLING10_MODE_HEIGHT) {
@@ -2979,22 +2975,18 @@ static int imx900_set_fmt(struct v4l2_subdev *sd,
 			pr_err("%s:imx900_write_reg_arry error, failed to set up resolution\n", __func__);
 			return -EINVAL;
 		}
-		ret = imx900_set_data_rate(sensor, IMX900_1188_MBPS);
-		if (ret < 0) {
-			pr_err("%s:imx900_write_reg_arry error, failed to set data rate\n", __func__);
-			return -EINVAL;
-		}
 	} else if (sensor->cur_mode.size.bounds_height == IMX900_BINNING_CROP_MODE_HEIGHT) {
 		ret = imx900_write_reg_arry(sensor, (struct vvcam_sccb_data_s *)mode_1024x720, ARRAY_SIZE(mode_1024x720));
 		if (ret < 0) {
 			pr_err("%s:imx900_write_reg_arry error, failed to set up resolution\n", __func__);
 			return -EINVAL;
 		}
-		ret = imx900_set_data_rate(sensor, IMX900_1188_MBPS);
-		if (ret < 0) {
-			pr_err("%s:imx900_write_reg_arry error, failed to set data rate\n", __func__);
-			return -EINVAL;
-		}
+	}
+
+	ret = imx900_s_ctrl(sensor->ctrls.data_rate);
+	if (ret < 0) {
+		pr_err("%s:unable to set data rate\n", __func__);
+		return -EINVAL;
 	}
 
 	ret = imx900_set_dep_registers(sensor);
@@ -3052,7 +3044,7 @@ static long imx900_priv_ioctl(struct v4l2_subdev *sd,
 	long ret = 0;
 	struct vvcam_sccb_data_s sensor_reg;
 
-	pr_info("enter %s %u\n", __func__, cmd);
+	pr_debug("enter %s %u\n", __func__, cmd);
 	mutex_lock(&sensor->lock);
 	switch (cmd) {
 	case VVSENSORIOC_S_POWER:
@@ -3528,7 +3520,7 @@ static int imx900_probe(struct i2c_client *client)
 		goto probe_err_free_entiny;
 	}
 
-	pr_info("%s camera mipi imx900, is found\n", __func__);
+	pr_debug("%s camera mipi imx900, is found\n", __func__);
 
 	return 0;
 

@@ -51,7 +51,8 @@
 #define PIX_VWIDTH_LOW       0x3046
 #define PIX_VWIDTH_HIGH      0x3047
 
-#define GAIN_HG0             0x304C
+#define GAIN_HG0_LOW         0x304C
+#define GAIN_HG0_HIGH        0x304D
 #define SHR0_LOW             0x3050
 #define SHR0_MID             0x3051
 #define SHR0_HIGH            0x3052
@@ -60,12 +61,17 @@
 #define SHR1_HIGH            0x3056
 
 #define SHR2                 0x3058
-#define RHS1                 0x3060
+#define RHS1_LOW             0x3060
+#define RHS1_MID             0x3061
+#define RHS1_HIGH            0x3062
 #define RHS2                 0x3064
 
-#define GAIN_0               0x3070
-#define GAIN_1               0x3072
-#define GAIN_2               0x3074 /* used in DOL mode */
+#define GAIN_0_LOW           0x3070
+#define GAIN_0_HIGH          0x3071
+
+#define GAIN_1_LOW           0x3072
+#define GAIN_1_HIGH          0x3073
+#define GAIN_2               0x3074 // used in DOL mode
 
 #define XHSOUTSEL_XVSOUTSEL  0x30A4
 #define XVS_XHS_DRV          0x30A6
@@ -82,6 +88,7 @@
 
 #define EXTMODE             0x30CE
 #define SECOND_SLAVE_ADD    0x300C
+#define GAIN_PGC_FIDMD      0x3400
 
 /*
  * Special values for the write table function
@@ -92,6 +99,8 @@
 
 #define IMX676_DEFAULT_WIDTH            3552
 #define IMX676_DEFAULT_HEIGHT           3092
+
+#define IMX676_HDR_HEIGHT               3072
 
 #define IMX676_CROP_3552x2160_WIDTH     3552
 #define IMX676_CROP_3552x2160_HEIGHT    2160
@@ -121,11 +130,39 @@ static struct vvcam_sccb_data_s imx676_10bit_mode[] = {
 	{0x3C0F,    0x03},
 };
 
+static struct vvcam_sccb_data_s imx676_10bit_mode_clearHDR[] = {
+	{ADBIT,     0x00},
+	{MDBIT,     0x00},
+
+	{0x355A,    0x00},
+
+	{0x3C0A,    0x03},
+	{0x3C0B,    0x03},
+	{0x3C0C,    0x03},
+	{0x3C0D,    0x03},
+	{0x3C0E,    0x03},
+	{0x3C0F,    0x03},
+};
+
 static struct vvcam_sccb_data_s imx676_12bit_mode[] = {
 	{ADBIT,     0x01},
 	{MDBIT,     0x01},
 
 	{0x355A,    0x10},
+
+	{0x3C0A,    0x1F},
+	{0x3C0B,    0x1F},
+	{0x3C0C,    0x1F},
+	{0x3C0D,    0x1F},
+	{0x3C0E,    0x1F},
+	{0x3C0F,    0x1F},
+};
+
+static struct vvcam_sccb_data_s imx676_12bit_mode_clearHDR[] = {
+	{ADBIT,     0x01},
+	{MDBIT,     0x01},
+
+	{0x355A,    0x00},
 
 	{0x3C0A,    0x1F},
 	{0x3C0B,    0x1F},
@@ -256,15 +293,11 @@ static struct vvcam_sccb_data_s imx676_init_setting[] = {
 	{0x47A0,               0x22},
 	{0x4E3C,               0x07}, /* output interface for 2 and 4 lane */
 
-	{HMAX_LOW,             0x74},
-	{HMAX_HIGH,            0x02},
 	{XVS_XHS_DRV,          0x00},
 	{SHR0_LOW,             0x08},
 	{VMAX_LOW,             0x64},
 	{VMAX_MID,             0x0F},
 
-	/* this one is tricky, implement a special logic for this when selecting data rate */
-	{0x355A,               0x1C},
 
 	/* AD conversion bit -check this for different data rates */
 	{0x3C0A,               0x03},
@@ -274,8 +307,9 @@ static struct vvcam_sccb_data_s imx676_init_setting[] = {
 	{0x3C0E,               0x03},
 	{0x3C0F,               0x03},
 
-	/* 1188 data rate */
-	{DATARATE_SEL,         0x04},
+	// {0x48A7,               0x02}, // non dol HDR
+	// {0x4EE8,               0x01}, // non dol HDR
+
 };
 
 static struct vvcam_sccb_data_s mode_3552x3092[] = {
@@ -344,33 +378,126 @@ static struct vvcam_sccb_data_s mode_h2v2_binning[] = {
 static struct vvcam_sccb_data_s mode_crop_binning_1768x1080[] = {
 	{WINMODE,               0x04},
 	{ADDMODE,               0x01},
+	{PIX_HST_HIGH,          0x00},
+	{PIX_HST_LOW,           0x00},
+	{PIX_HWIDTH_HIGH,       0x0D},
+	{PIX_HWIDTH_LOW,        0xD0},
+	{PIX_VST_HIGH,          0x02},
+	{PIX_VST_LOW,           0xBA},
+	{PIX_VWIDTH_HIGH,       0x08},
+	{PIX_VWIDTH_LOW,        0x70},
 
 	{ADBIT,                 0x00},
 	{MDBIT,                 0x01},
 
-	{0x355A,                0x00},
-
-	{0x3C0A,    0x03},
-	{0x3C0B,    0x03},
-	{0x3C0C,    0x03},
-	{0x3C0D,    0x03},
-	{0x3C0E,    0x03},
-	{0x3C0F,    0x03},
+	{0x3C0A,                0x03},
+	{0x3C0B,                0x03},
+	{0x3C0C,                0x03},
+	{0x3C0D,                0x03},
+	{0x3C0E,                0x03},
+	{0x3C0F,                0x03},
 
 	/* options for non clear HDR with binning */
-	{0x4498,               0x50},
-	{0x449A,               0x4B},
-	{0x449C,               0x4B},
-	{0x449E,               0x47},
+	{0x4498,                0x50},
+	{0x449A,                0x4B},
+	{0x449C,                0x4B},
+	{0x449E,                0x47},
+};
 
+static struct vvcam_sccb_data_s imx676_setting_dol_hdr[] = {
+	// crop settings
+	{WINMODE,           0x04},
 	{PIX_HST_HIGH,      0x00},
 	{PIX_HST_LOW,       0x00},
 	{PIX_HWIDTH_HIGH,   0x0D},
-	{PIX_HWIDTH_LOW,    0xD0},
-	{PIX_VST_HIGH,      0x02},
-	{PIX_VST_LOW,       0xBA},
-	{PIX_VWIDTH_HIGH,   0x08},
-	{PIX_VWIDTH_LOW,    0x70},
+	{PIX_HWIDTH_LOW,    0xE0},
+	{PIX_VST_HIGH,      0x00},
+	{PIX_VST_LOW,       0xE8},
+	{PIX_VWIDTH_HIGH,   0x0C},
+	{PIX_VWIDTH_LOW,    0x00}, // 0x14 for 3092
+
+	{WDMODE,            0x01},
+	{ADDMODE,           0x00},
+	{THIN_V_EN,         0x01},
+
+	{GAIN_PGC_FIDMD,    0x00},
+
+	{SHR0_LOW,          0x00},
+	{SHR0_MID,          0x10},
+	{SHR1_LOW,          0x0A},
+
+	{RHS1_LOW,           0x82},
+	{RHS1_MID,           0x00},
+
+	{0x4498,               0x4C}, // no clear HDR
+	{0x449A,               0x4B}, // no clear HDR
+	{0x449C,               0x4B}, // no clear HDR
+	{0x449E,               0x49}, // no clear HDR
+
+	{0x44A8,               0x4B}, // no clear HDR
+	{0x44AA,               0x4B}, // no clear HDR
+	{0x44AC,               0x4B}, // no clear HDR
+	{0x44AE,               0x46}, // no clear HDR
+	{0x44B0,               0x33}, // no clear HDR
+
+	{0x44B8,               0x42}, // no clear HDR
+	{0x44BA,               0x42}, // no clear HDR
+	{0x44BC,               0x42}, // no clear HDR
+	{0x44BE,               0x42}, // no clear HDR
+	{0x44C0,               0x33}, // no clear HDR
+
+	{0x48A7,               0x02}, // dol HDR
+	{0x4EE8,               0x01}, // dol HDR
+};
+
+static struct vvcam_sccb_data_s imx676_setting_clear_hdr[] = {
+	{WINMODE,           0x04},
+	{PIX_HST_HIGH,      0x00},
+	{PIX_HST_LOW,       0x00},
+	{PIX_HWIDTH_HIGH,   0x0D},
+	{PIX_HWIDTH_LOW,    0xE0},
+	{PIX_VST_HIGH,      0x00},
+	{PIX_VST_LOW,       0xE8},
+	{PIX_VWIDTH_HIGH,   0x0C},
+	{PIX_VWIDTH_LOW,    0x00},
+
+	{WDMODE,            0x08},
+	{ADDMODE,           0x00},
+
+	{VMAX_LOW,          0xC8},
+	{VMAX_MID,          0x1E},
+	{FDG_SEL0,          0x02},
+
+	{SHR0_LOW,          0x0C},
+	{SHR0_MID,          0x00},
+
+	{0x3C44,            0x05},
+
+	{0x4498,               0x50}, // no clear HDR
+	{0x449A,               0x4D}, // no clear HDR
+	{0x449C,               0x4D}, // no clear HDR
+	{0x449E,               0x48}, // no clear HDR
+
+	{0x44A8,               0x4D}, // no clear HDR
+	{0x44AA,               0x4D}, // no clear HDR
+	{0x44AC,               0x4D}, // no clear HDR
+	{0x44AE,               0x48}, // no clear HDR
+	{0x44B0,               0x3C}, // no clear HDR
+
+	{0x44B8,               0x47}, // no clear HDR
+	{0x44BA,               0x47}, // no clear HDR
+	{0x44BC,               0x47}, // no clear HDR
+	{0x44BE,               0x3D}, // no clear HDR
+	{0x44C0,               0x3D}, // no clear HDR
+
+	{0x4569,               0x00},
+	{0x456A,               0x00},
+	{0x456B,               0x04},
+	{0x456C,               0x04},
+	{0x456D,               0x04},
+	{0x456E,               0x04},
+	{0x456F,               0x04},
+	{0x4570,               0x04},
 };
 
 static struct vvcam_sccb_data_s mode_enable_pattern_generator[] = {
@@ -385,7 +512,7 @@ static struct vvcam_sccb_data_s mode_disable_pattern_generator[] = {
 	{TPG_COLORWIDTH,       0x00},
 };
 
-typedef enum {
+enum data_rate_mode {
 	IMX676_2376_MBPS,
 	IMX676_2079_MBPS,
 	IMX676_1782_MBPS,
@@ -394,10 +521,10 @@ typedef enum {
 	IMX676_891_MBPS,
 	IMX676_720_MBPS,
 	IMX676_594_MBPS,
-} data_rate_mode;
+};
 
-typedef enum {
+enum sync_mode {
 	NO_SYNC,
 	INTERNAL_SYNC,
 	EXTERNAL_SYNC,
-} sync_mode;
+};

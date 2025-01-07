@@ -26,6 +26,7 @@ and copy it to target at `/home/root`. Extract the archive with:
     ```bash
     cd ./package
     source ./install.sh
+    depmod
     ```
 
 - All FSM:GO sensors are installed now. To set up device tree reboot the target and press any key from terminal to enter u-boot. Then set the appropriate device tree as fdtfile (`imx8mp-evk-imx662.dtb` for single imx662 sensor, `imx8mp-evk-imx662-dual.dtb` for two sensors, `imx8mp-evk-imx662-gmsl.dtb` for singe sensor using gmsl and `imx8mp-evk-imx662-dual-gmsl.dtb` for two sensors using gmsl):
@@ -44,6 +45,7 @@ Prerequisites:
 - Installed Ubuntu 20.04 OS or higher on Host System.
 - Downloaded NXP documentation for [Linux version 6.6.3_1.0.0](https://www.nxp.com/design/design-center/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX).
 - Installed Yocto Toolchain 6.6.3_1.0.0 - follow the instructions in i.MX_Yocto_Project_User's_Guide document from documentation.
+- Flashed SD card following [instructions](#flashing-platform)
 - Download and build NXP repositories to wanted directory:
    - NXP kernel - linux-imx:
      ```
@@ -52,7 +54,6 @@ Prerequisites:
      . /opt/fsl-imx-wayland/6.6-nanbield/environment-setup-armv8a-poky-linux
      make mrproper
      make imx_v8_defconfig
-     make ARCH=arm64 -j8  # change num of processors 
      ```
    - isp-imx:
      ```
@@ -76,45 +77,54 @@ Prerequisites:
     
     git clone https://github.com/framosimaging/framos-nxp-drivers
     ```
-3. Copy & replace NXP clean source files & folders with Framos modified files & folders from github:
+3. Copy & replace NXP clean source files & folders with Framos modified files & folders from GitHub:
     ```
     cp -r ~/framos-nxp-drivers/linux-imx $NXP_DIR/.
     cp -r ~/framos-nxp-drivers/isp-imx-4.2.2.24.1 $NXP_DIR/.
     cp -r ~/framos-nxp-drivers/isp-vvcam $NXP_DIR/.
+    cp ~/framos-nxp-drivers/cp_to_target.sh $NXP_DIR/. # script for copying files to target
     ```
-4. Copy script for deploying files to target:
-    ```
-    cp ~/framos-nxp-drivers/cp_to_target.sh $NXP_DIR/.
-    ```
-5. Build device tree:
+
+4. Build kernel image:
     ```
     cd $NXP_DIR/linux-imx
     . /opt/fsl-imx-wayland/6.6-nanbield/environment-setup-armv8a-poky-linux
-    make dtbs
+    make -j$(nproc)
     ```
+
+5. Install kernel modules:
+    ```
+    cd $NXP_DIR/linux-imx
+    mkdir ../modules
+    export INSTALL_MOD_PATH=$NXP_DIR/modules
+    make modules_install
+    ```
+
 6. Build isp-imx:
     ```
     cd $NXP_DIR/isp-imx-4.2.2.24.1
     . /opt/fsl-imx-wayland/6.6-nanbield/environment-setup-armv8a-poky-linux
     ./build-all-isp.sh
     ```
+
 7. Build isp-vvcam:
     ```
     cd $NXP_DIR/isp-vvcam
     . /opt/fsl-imx-wayland/6.6-nanbield/environment-setup-armv8a-poky-linux
     export KERNEL_SOURCE_DIR=$NXP_DIR/linux-imx
-    ./build-all-vvcam.sh
+    ./build-all-vvcam.sh release
+    mkdir -p $INSTALL_MOD_PATH/lib/modules/6.*/updates
+    cp ./modules/*.ko $INSTALL_MOD_PATH/lib/modules/6.*/updates
     ```
 
-8. Flash the SD card following [instructions](#flashing-platform)
-
-9. Copy needed files and folders from host to target:
+8. Copy needed files and folders from host to target:
     ```
     cd $NXP_DIR
     chmod +x cp_to_target.sh
     ./cp_to_target.sh <target-ip-address>
     ```
-10. Reboot the target and press any key from terminal to enter u-boot and set the appropriate device tree as fdtﬁle (example for IMX662):
+
+9. Reboot the target and press any key from terminal to enter u-boot and set the appropriate device tree as fdtﬁle (example for IMX662):
     ```
     setenv fdtfile imx8mp-evk-imx662.dtb
     saveenv
@@ -125,7 +135,7 @@ Prerequisites:
 - If you are using only one sensor make sure to use CSI1 port.
 - To test that everything is working as expected run:
   ```
-  gst-launch-1.0 -v v4l2src device=/dev/video2 ! waylandsink
+  gst-launch-1.0 -v v4l2src device=/dev/video2 ! queue! waylandsink
   ```
 - If you are using dual mode you can use command:
   ```
