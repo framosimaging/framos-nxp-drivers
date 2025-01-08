@@ -112,13 +112,31 @@
 #define IMX678_TO_MID_BYTE(x) (x>>8)
 
 static struct vvcam_sccb_data_s imx678_10bit_mode[] = {
-	{ADBIT,     0x00},
-	{MDBIT,     0x00},
+	{ADBIT,                0x00},
+	{MDBIT,                0x00},
+	{0x3CF4,               0x00},
+	{0x3EB6,               0x4D},
+};
+
+static struct vvcam_sccb_data_s imx678_10bit_mode_clearHDR[] = {
+	{ADBIT,                0x00},
+	{MDBIT,                0x00},
+	{0x3CF4,               0xA5},
+	{0x3EB6,               0xA5},
 };
 
 static struct vvcam_sccb_data_s imx678_12bit_mode[] = {
-	{ADBIT,     0x01},
-	{MDBIT,     0x01},
+	{ADBIT,                0x01},
+	{MDBIT,                0x01},
+	{0x3CF4,               0x00},
+	{0x3EB6,               0x4D},
+};
+
+static struct vvcam_sccb_data_s imx678_12bit_mode_clearHDR[] = {
+	{ADBIT,                0x01},
+	{MDBIT,                0x01},
+	{0x3CF4,               0xAA},
+	{0x3EB6,               0xAA},
 };
 
 static struct vvcam_sccb_data_s imx678_init_setting[] = {
@@ -495,13 +513,8 @@ static struct vvcam_sccb_data_s imx678_init_setting[] = {
 	{0x47C2,               0x3E},
 	{0x47C3,               0x01},
 
-	{HMAX_LOW,             0x4C},
-	{HMAX_HIGH,            0x04},
 
 	{SHR0_LOW,             0x06},
-
-	/* 891 data rate */
-	{DATARATE_SEL,         0x05},
 
 	/* INCK = 37.125Mhz */
 	{INCK_SEL,             0x01},
@@ -520,6 +533,90 @@ static struct vvcam_sccb_data_s mode_h2v2_binning[] = {
 	{MDBIT,                 0x01},
 };
 
+static struct vvcam_sccb_data_s imx678_setting_dol_hdr[] = {
+	{WINMODE,            0x00},
+	{WDMODE,             0x01},
+	{ADDMODE,            0x00},
+	{THIN_V_EN,          0x01},
+
+	{GAIN_PGC_FIDMD,     0x00},
+
+	{SHR0_LOW,          0x40},
+	{SHR0_MID,          0x0b},
+	{SHR1_LOW,          0x05},
+
+	{RHS1_LOW,           0x49},
+	{RHS1_MID,           0x00},
+
+	{0x355A,             0x64},
+};
+
+
+static struct vvcam_sccb_data_s imx678_setting_clear_hdr[] = {
+	{WINMODE,           0x00},
+	{WDMODE,            0x08},
+	{ADDMODE,           0x00},
+
+	{VMAX_LOW,          0x94},
+	{VMAX_MID,          0x11},
+
+	{FDG_SEL0,          0x02},
+	{SHR0_LOW,          0x06},
+	{SHR0_MID,          0x00},
+
+	{0x306B,            0x04},
+	{EXP_GAIN,          0x02},
+	{0x355A,            0x00},
+	{0x3A64,            0x01},
+
+	{0x3C37,            0x30},
+
+	{0x3CF2,            0x78},
+	{0x3CF3,            0x00},
+
+	{0x3EB4,            0x7B},
+	{0x3EB5,            0x00},
+	{0x3EB7,            0x40},
+
+	{0x3F24,            0x17},
+	{0x3FC4,            0x2D},
+
+	{0x4420,            0xFF},
+	{0x4421,            0x03},
+	{0x4422,            0x00},
+	{0x4423,            0x08},
+
+	{0x44A4,            0x37},
+	{0x44A6,            0x37},
+	{0x44A8,            0x37},
+	{0x44AA,            0x37},
+	{0x44B4,            0x37},
+	{0x44B6,            0x37},
+	{0x44B8,            0x37},
+	{0x44BA,            0x37},
+	{0x44C4,            0x37},
+	{0x44C6,            0x37},
+	{0x44C8,            0x37},
+
+	{0x453D,            0x18},
+	{0x453E,            0x18},
+	{0x453F,            0x11},
+	{0x4540,            0x11},
+	{0x4541,            0x11},
+	{0x4542,            0x11},
+	{0x4543,            0x11},
+	{0x4544,            0x11},
+	{0x4549,            0x00},
+	{0x454A,            0x00},
+	{0x454B,            0x04},
+	{0x454C,            0x04},
+	{0x454D,            0x04},
+	{0x454E,            0x04},
+	{0x454F,            0x04},
+	{0x4550,            0x04},
+	{0x454A,            0x04},
+};
+
 static struct vvcam_sccb_data_s mode_enable_pattern_generator[] = {
 	{BLKLEVEL_LOW,         0x00},
 	{TPG_EN_DUOUT,         0x01},
@@ -532,7 +629,7 @@ static struct vvcam_sccb_data_s mode_disable_pattern_generator[] = {
 	{TPG_COLORWIDTH,       0x00},
 };
 
-typedef enum {
+enum data_rate_mode {
 	IMX678_2376_MBPS,
 	IMX678_2079_MBPS,
 	IMX678_1782_MBPS,
@@ -541,10 +638,10 @@ typedef enum {
 	IMX678_891_MBPS,
 	IMX678_720_MBPS,
 	IMX678_594_MBPS,
-} data_rate_mode;
+};
 
-typedef enum {
+enum sync_mode {
 	NO_SYNC,
 	INTERNAL_SYNC,
 	EXTERNAL_SYNC,
-} sync_mode;
+};

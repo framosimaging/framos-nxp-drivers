@@ -118,6 +118,15 @@ static struct vvcam_sccb_data_s imx662_10bit_mode[] = {
 	{0x3A52,            0x19},
 };
 
+static struct vvcam_sccb_data_s imx662_10bit_mode_clearHDR[] = {
+	{ADBIT,             0x00},
+	{MDBIT,             0x00},
+
+	{0x3A50,            0x56},
+	{0x3A51,            0x02},
+	{0x3A52,            0x19},
+};
+
 static struct vvcam_sccb_data_s imx662_12bit_mode[] = {
 	{ADBIT,             0x01},
 	{MDBIT,             0x01},
@@ -132,7 +141,6 @@ static struct vvcam_sccb_data_s imx662_init_setting[] = {
 	{INCK_SEL,          0x01},
 	{WDMODE,            0x00},
 	{ADDMODE,           0x00},
-	{DATARATE_SEL,      0x07},
 
 	{LANEMODE,          0x03},
 	{SHR0_LOW,          0x04},
@@ -234,6 +242,9 @@ static struct vvcam_sccb_data_s imx662_setting_all_pixel[] = {
 	{WINMODE,           0x00},
 	{WDMODE,            0x00},
 	{ADDMODE,           0x00},
+
+	{0x3460,             0x21},
+	{0x3C40,             0x06}
 };
 
 static struct vvcam_sccb_data_s imx662_setting_crop[] = {
@@ -241,7 +252,7 @@ static struct vvcam_sccb_data_s imx662_setting_crop[] = {
 	{WDMODE,            0x00},
 	{ADDMODE,           0x00},
 
-    // 1280 x 720
+	// 1280 x 720
 	{PIX_HST_HIGH,      IMX662_TO_MID_BYTE(320)},
 	{PIX_HST_LOW,       IMX662_TO_LOW_BYTE(320)},
 	{PIX_HWIDTH_HIGH,   IMX662_TO_MID_BYTE(1296)},
@@ -251,6 +262,9 @@ static struct vvcam_sccb_data_s imx662_setting_crop[] = {
 	{PIX_VST_LOW,       IMX662_TO_LOW_BYTE(180)},
 	{PIX_VWIDTH_HIGH,   IMX662_TO_MID_BYTE(740)},
 	{PIX_VWIDTH_LOW,    IMX662_TO_LOW_BYTE(740)},
+
+	{0x3460,             0x21},
+	{0x3C40,             0x06}
 };
 
 static struct vvcam_sccb_data_s imx662_setting_binning[] = {
@@ -266,6 +280,9 @@ static struct vvcam_sccb_data_s imx662_setting_binning[] = {
 	{0x3A50,            0x62},
 	{0x3A51,            0x01},
 	{0x3A52,            0x19},
+
+	{0x3460,             0x21},
+	{0x3C40,             0x06}
 };
 
 static struct vvcam_sccb_data_s imx662_setting_binning_crop[] = {
@@ -275,8 +292,10 @@ static struct vvcam_sccb_data_s imx662_setting_binning_crop[] = {
 
 	{ADBIT,             0x00},
 	{MDBIT,             0x01},
+	{HMAX_LOW,          0x94},
+	{HMAX_HIGH,         0x02},
 
-    // 640 x 480
+	// 640 x 480
 	{PIX_HST_HIGH,      IMX662_TO_MID_BYTE(320)},
 	{PIX_HST_LOW,       IMX662_TO_LOW_BYTE(320)},
 	{PIX_HWIDTH_HIGH,   IMX662_TO_MID_BYTE(1296)},
@@ -287,6 +306,48 @@ static struct vvcam_sccb_data_s imx662_setting_binning_crop[] = {
 	{PIX_VWIDTH_HIGH,   IMX662_TO_MID_BYTE(980)},
 	{PIX_VWIDTH_LOW,    IMX662_TO_LOW_BYTE(980)},
 
+	{0x3A50,            0x62},
+	{0x3A51,            0x01},
+	{0x3A52,            0x19},
+
+	{0x3460,             0x21},
+	{0x3C40,             0x06}
+};
+
+static struct vvcam_sccb_data_s imx662_setting_dol_hdr[] = {
+	{WINMODE,            0x00},
+	{WDMODE,             0x01},
+	{ADDMODE,            0x00},
+	{THIN_V_EN,          0x01},
+	{GAIN_PGC_FIDMD,     0x00},
+
+	{SHR0_LOW,           0xe8},
+	{SHR0_MID,           0x03},
+	{SHR1_LOW,           0x05},
+
+	{RHS1_LOW,           0x9d},
+	{RHS1_MID,           0x00},
+
+	{0x3460,             0x21},
+	{0x3C40,             0x06}
+};
+
+static struct vvcam_sccb_data_s imx662_setting_clear_hdr[] = {
+	{WINMODE,           0x00},
+	{WDMODE,            0x08},
+	{ADDMODE,           0x00},
+
+	{VMAX_LOW,          0xC4},
+	{VMAX_MID,          0x09},
+
+	{FDG_SEL0,          0x02},
+	{EXP_GAIN,          0x02},
+
+	{SHR0_LOW,          0x08},
+	{SHR0_MID,          0x00},
+
+	{0x3460,            0x22},
+	{0x3C40,            0x05}
 };
 
 static struct vvcam_sccb_data_s mode_enable_pattern_generator[] = {

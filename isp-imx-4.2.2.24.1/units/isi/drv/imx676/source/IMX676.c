@@ -93,7 +93,7 @@ static RESULT IMX676_IsiSensorGetClkIss(IsiSensorHandle_t handle,
         return RET_FAILURE;
     } 
     
-    TRACE( IMX676_INFO, "%s: status:%d sensor_mclk:%d csi_max_pixel_clk:%d\n",
+    TRACE( IMX676_INFO, "%s: status:%d sensor_mclk:%ld csi_max_pixel_clk:%ld\n",
         __func__, pclk->status, pclk->sensor_mclk, pclk->csi_max_pixel_clk);
     TRACE( IMX676_INFO, "%s: (exit)\n", __func__);
 
@@ -119,7 +119,7 @@ static RESULT IMX676_IsiSensorSetClkIss(IsiSensorHandle_t handle,
         return RET_FAILURE;
     }
 
-    TRACE( IMX676_INFO, "%s: status:%d sensor_mclk:%d csi_max_pixel_clk:%d\n",
+    TRACE( IMX676_INFO, "%s: status:%d sensor_mclk:%ld csi_max_pixel_clk:%ld\n",
         __func__, pclk->status, pclk->sensor_mclk, pclk->csi_max_pixel_clk);
 
     TRACE( IMX676_INFO, "%s: (exit)\n", __func__);
@@ -203,15 +203,16 @@ static RESULT IMX676_IsiRegisterWriteIss(IsiSensorHandle_t handle,
 static RESULT IMX676_UpdateIsiAEInfo(IsiSensorHandle_t handle)
 {
     IMX676_Context_t *pIMX676Ctx = (IMX676_Context_t *) handle;
+    const int32_t NANO_MICRO_COEFF = 1000;
 
     IsiSensorAeInfo_t *pAeInfo = &pIMX676Ctx->AeInfo;
-    pAeInfo->oneLineExpTime = pIMX676Ctx->CurMode.ae_info.one_line_exp_time_ns / 1000;
+    pAeInfo->oneLineExpTime = pIMX676Ctx->CurMode.ae_info.one_line_exp_time_ns / NANO_MICRO_COEFF;
 
     if (pIMX676Ctx->CurMode.hdr_mode == SENSOR_MODE_LINEAR) {
         pAeInfo->maxIntTime.linearInt =
-            pIMX676Ctx->CurMode.ae_info.max_integration_line * pAeInfo->oneLineExpTime * 1000;
+            pIMX676Ctx->CurMode.ae_info.max_integration_line * pAeInfo->oneLineExpTime * NANO_MICRO_COEFF;
         pAeInfo->minIntTime.linearInt =
-            pIMX676Ctx->CurMode.ae_info.min_integration_line * pAeInfo->oneLineExpTime * 1000;
+            pIMX676Ctx->CurMode.ae_info.min_integration_line * pAeInfo->oneLineExpTime * NANO_MICRO_COEFF;
         pAeInfo->maxAGain.linearGainParas = pIMX676Ctx->CurMode.ae_info.max_again;
         pAeInfo->minAGain.linearGainParas = pIMX676Ctx->CurMode.ae_info.min_again;
         pAeInfo->maxDGain.linearGainParas = pIMX676Ctx->CurMode.ae_info.max_dgain;
@@ -255,26 +256,36 @@ static RESULT IMX676_UpdateIsiAEInfo(IsiSensorHandle_t handle)
                 pAeInfo->minAGain.triGainParas.triLGain = pIMX676Ctx->CurMode.ae_info.min_long_again;
                 pAeInfo->maxDGain.triGainParas.triLGain = pIMX676Ctx->CurMode.ae_info.max_long_dgain;
                 pAeInfo->minDGain.triGainParas.triLGain = pIMX676Ctx->CurMode.ae_info.min_long_dgain;
+
+                pAeInfo->hdrRatio[0] = pIMX676Ctx->CurMode.ae_info.hdr_ratio.ratio_l_s;
+                pAeInfo->hdrRatio[1] = pIMX676Ctx->CurMode.ae_info.hdr_ratio.ratio_s_vs;
+
                 break;
             case SENSOR_STITCHING_DUAL_DCG_NOWAIT:
             case SENSOR_STITCHING_16BIT_COMPRESS:
             case SENSOR_STITCHING_L_AND_S:
             case SENSOR_STITCHING_2DOL:
                 pAeInfo->maxIntTime.dualInt.dualIntTime =
-                    pIMX676Ctx->CurMode.ae_info.max_integration_line * pAeInfo->oneLineExpTime;
+                    pIMX676Ctx->CurMode.ae_info.max_integration_line * pAeInfo->oneLineExpTime
+                        * NANO_MICRO_COEFF;
                 pAeInfo->minIntTime.dualInt.dualIntTime =
-                    pIMX676Ctx->CurMode.ae_info.min_integration_line * pAeInfo->oneLineExpTime;
+                    pIMX676Ctx->CurMode.ae_info.min_integration_line * pAeInfo->oneLineExpTime
+                        * NANO_MICRO_COEFF;
 
                 if (pIMX676Ctx->CurMode.stitching_mode == SENSOR_STITCHING_DUAL_DCG_NOWAIT) {
-                    pAeInfo->maxIntTime.dualInt.dualSIntTime = pAeInfo->maxIntTime.dualInt.dualIntTime;
-                    pAeInfo->minIntTime.dualInt.dualSIntTime = pAeInfo->minIntTime.dualInt.dualIntTime;
+                    pAeInfo->maxIntTime.dualInt.dualSIntTime =
+                        pAeInfo->maxIntTime.dualInt.dualIntTime * NANO_MICRO_COEFF;
+                    pAeInfo->minIntTime.dualInt.dualSIntTime = pAeInfo->minIntTime.dualInt.dualIntTime
+                        * NANO_MICRO_COEFF;
                 } else {
                     pAeInfo->maxIntTime.dualInt.dualSIntTime =
-                        pIMX676Ctx->CurMode.ae_info.max_vsintegration_line * pAeInfo->oneLineExpTime;
+                        pIMX676Ctx->CurMode.ae_info.max_vsintegration_line * pAeInfo->oneLineExpTime
+                            * NANO_MICRO_COEFF;
                     pAeInfo->minIntTime.dualInt.dualSIntTime =
-                        pIMX676Ctx->CurMode.ae_info.min_vsintegration_line * pAeInfo->oneLineExpTime;
+                        pIMX676Ctx->CurMode.ae_info.min_vsintegration_line * pAeInfo->oneLineExpTime
+                            * NANO_MICRO_COEFF;
                 }
-                
+
                 if (pIMX676Ctx->CurMode.stitching_mode == SENSOR_STITCHING_DUAL_DCG_NOWAIT) {
                     pAeInfo->maxAGain.dualGainParas.dualSGain = pIMX676Ctx->CurMode.ae_info.max_again;
                     pAeInfo->minAGain.dualGainParas.dualSGain = pIMX676Ctx->CurMode.ae_info.min_again;
@@ -294,7 +305,7 @@ static RESULT IMX676_UpdateIsiAEInfo(IsiSensorHandle_t handle)
                     pAeInfo->maxDGain.dualGainParas.dualGain  = pIMX676Ctx->CurMode.ae_info.max_dgain;
                     pAeInfo->minDGain.dualGainParas.dualGain  = pIMX676Ctx->CurMode.ae_info.min_dgain;
                 }
-                
+                pAeInfo->hdrRatio[0] = pIMX676Ctx->CurMode.ae_info.hdr_ratio.ratio_s_vs;
                 break;
             default:
                 break;
@@ -305,8 +316,6 @@ static RESULT IMX676_UpdateIsiAEInfo(IsiSensorHandle_t handle)
     pAeInfo->maxFps   = pIMX676Ctx->CurMode.ae_info.max_fps;
     pAeInfo->minFps   = pIMX676Ctx->CurMode.ae_info.min_fps;
     pAeInfo->minAfps  = pIMX676Ctx->CurMode.ae_info.min_afps;
-    pAeInfo->hdrRatio[0] = pIMX676Ctx->CurMode.ae_info.hdr_ratio.ratio_l_s;
-    pAeInfo->hdrRatio[1] = pIMX676Ctx->CurMode.ae_info.hdr_ratio.ratio_s_vs;
 
     pAeInfo->intUpdateDlyFrm = pIMX676Ctx->CurMode.ae_info.int_update_delay_frm;
     pAeInfo->gainUpdateDlyFrm = pIMX676Ctx->CurMode.ae_info.gain_update_delay_frm;
@@ -384,7 +393,7 @@ static RESULT IMX676_IsiSensorSetStreamingIss(IsiSensorHandle_t handle,
     uint32_t status = on;
     ret = ioctl(pHalCtx->sensor_fd, VVSENSORIOC_S_STREAM, &status);
     if (ret != 0){
-        TRACE(IMX676_ERROR, "%s set sensor stream %d error\n", __func__);
+        TRACE(IMX676_ERROR, "%s set sensor stream error\n", __func__);
         return RET_FAILURE;
     }
 
@@ -676,6 +685,10 @@ static RESULT IMX676_IsiSetHdrRatioIss(IsiSensorHandle_t handle,
     HalContext_t *pHalCtx = (HalContext_t *) pIMX676Ctx->IsiCtx.HalHandle;
 
     struct sensor_hdr_artio_s hdr_ratio;
+
+    // Could be refactored with the new NXP version:
+    // set by exposure.ratio in Calibration file, even in Dol2 anc ClearHDR both ratios
+    // are set to the same number but this does not effect streaming.
     if (hdrRatioNum == 2) {
         hdr_ratio.ratio_s_vs = HdrRatio[1];
         hdr_ratio.ratio_l_s = HdrRatio[0];
@@ -736,11 +749,11 @@ static RESULT IMX676_IsiSetIntegrationTimeIss(IsiSensorHandle_t handle,
 
     IMX676_Context_t *pIMX676Ctx = (IMX676_Context_t *) handle;
     HalContext_t *pHalCtx = (HalContext_t *) pIMX676Ctx->IsiCtx.HalHandle;
-    printf("\n\nAAAAAAAAAAAAAAA %u\n\n", pIntegrationTime->IntegrationTime.linearInt);
+    TRACE(IMX676_INFO,"%s: Integration time: %u\n", __func__, pIntegrationTime->IntegrationTime.linearInt);
     if (pIntegrationTime == NULL)
         return RET_NULL_POINTER;
 
-    oneLineTime =  pIMX676Ctx->AeInfo.oneLineExpTime;
+    oneLineTime = pIMX676Ctx->AeInfo.oneLineExpTime;
     pIMX676Ctx->IntTime.expoFrmType = pIntegrationTime->expoFrmType;
 
     switch (pIntegrationTime->expoFrmType) {
@@ -1193,7 +1206,7 @@ static RESULT IMX676_IsiGetAeStartExposureIs(IsiSensorHandle_t handle, uint64_t 
            
     }
     *pExposure =  pIMX676Ctx->AEStartExposure;
-    TRACE(IMX676_INFO, "%s:get start exposure %d\n", __func__, pIMX676Ctx->AEStartExposure);
+    TRACE(IMX676_INFO, "%s:get start exposure %ld\n", __func__, pIMX676Ctx->AEStartExposure);
 
     TRACE(IMX676_INFO, "%s: (exit)\n", __func__);
     return RET_SUCCESS;
@@ -1205,7 +1218,7 @@ static RESULT IMX676_IsiSetAeStartExposureIs(IsiSensorHandle_t handle, uint64_t 
     IMX676_Context_t *pIMX676Ctx = (IMX676_Context_t *) handle;
 
     pIMX676Ctx->AEStartExposure = exposure;
-    TRACE(IMX676_INFO, "set start exposure %d\n", __func__,pIMX676Ctx->AEStartExposure);
+    TRACE(IMX676_INFO, "set start exposure %ld\n", pIMX676Ctx->AEStartExposure);
     TRACE(IMX676_INFO, "%s: (exit)\n", __func__);
     return RET_SUCCESS;
 }
@@ -1217,6 +1230,8 @@ RESULT IMX676_IsiGetSensorIss(IsiSensor_t *pIsiSensor)
 
     if (pIsiSensor == NULL)
         return RET_NULL_POINTER;
+
+     memset(pIsiSensor, 0, sizeof(IsiSensor_t));
      pIsiSensor->pszName                         = SensorName;
      pIsiSensor->pIsiSensorSetPowerIss           = IMX676_IsiSensorSetPowerIss;
      pIsiSensor->pIsiCreateSensorIss             = IMX676_IsiCreateSensorIss;

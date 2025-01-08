@@ -56,6 +56,12 @@ write_default_mode_files () {
 	echo "[mode.3]" >> IMX662_MODES.txt
 	echo "xml = \"IMX662_Basic_640x480.xml\"" >> IMX662_MODES.txt
 	echo "dwe = \"dewarp_config/sensor_dwe_IMX662_Basic_640x480.json\"" >> IMX662_MODES.txt
+	echo "[mode.4]" >> IMX662_MODES.txt
+	echo "xml = \"IMX662_Basic_HDR_1936x1100.xml\"" >> IMX662_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX662_Basic_1920x1080.json\"" >> IMX662_MODES.txt
+	echo "[mode.5]" >> IMX662_MODES.txt
+	echo "xml = \"IMX662_Basic_HDR_1936x1100.xml\"" >> IMX662_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX662_Basic_1920x1080.json\"" >> IMX662_MODES.txt
 	# IMX676 modes file
 	echo -n "" > IMX676_MODES.txt
 	echo "[mode.0]" >> IMX676_MODES.txt
@@ -70,6 +76,12 @@ write_default_mode_files () {
 	echo "[mode.3]" >> IMX676_MODES.txt
 	echo "xml = \"IMX676_Basic_1760x1070.xml\"" >> IMX676_MODES.txt
 	echo "dwe = \"dewarp_config/sensor_dwe_IMX676_Basic_1760x1070.json\"" >> IMX676_MODES.txt
+	echo "[mode.4]" >> IMX676_MODES.txt
+	echo "xml = \"IMX676_Basic_HDR_3552x3072.xml\"" >> IMX676_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX676_Basic_3536x3072.json\"" >> IMX676_MODES.txt
+	echo "[mode.5]" >> IMX676_MODES.txt
+	echo "xml = \"IMX676_Basic_HDR_3552x3072.xml\"" >> IMX676_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX676_Basic_3536x3072.json\"" >> IMX676_MODES.txt
 	# IMX678 modes file
 	echo -n "" > IMX678_MODES.txt
 	echo "[mode.0]" >> IMX678_MODES.txt
@@ -78,6 +90,12 @@ write_default_mode_files () {
 	echo "[mode.1]" >> IMX678_MODES.txt
 	echo "xml = \"IMX678_Basic_1920x1080.xml\"" >> IMX678_MODES.txt
 	echo "dwe = \"dewarp_config/sensor_dwe_IMX678_Basic_1920x1080.json\"" >> IMX678_MODES.txt
+	echo "[mode.2]" >> IMX678_MODES.txt
+	echo "xml = \"IMX678_Basic_HDR_3856x2180.xml\"" >> IMX678_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX678_Basic_3840x2160.json\"" >> IMX678_MODES.txt
+	echo "[mode.3]" >> IMX678_MODES.txt
+	echo "xml = \"IMX678_Basic_HDR_3856x2180.xml\"" >> IMX678_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX678_Basic_3840x2160.json\"" >> IMX678_MODES.txt
 	# IMX900 modes file
 	echo -n "" > IMX900_MODES.txt
 	echo "[mode.0]" >> IMX900_MODES.txt

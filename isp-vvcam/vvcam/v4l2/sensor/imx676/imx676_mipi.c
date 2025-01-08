@@ -30,6 +30,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
 
+#include "vvsensor.h"
 #include "imx676_regs.h"
 #include "max96792.h"
 #include "max96793.h"
@@ -52,8 +53,14 @@
 #define IMX676_DEFAULT_BLACK_LEVEL_10BPP	50
 #define IMX676_DEFAULT_BLACK_LEVEL_12BPP	200
 
-#define IMX676_MIN_SHR0_LENGTH 10
-#define IMX676_MIN_INTEGRATION_LINES 10
+#define IMX676_MIN_SHR0_LENGTH              10
+#define IMX676_MIN_SHR0_CLEAR_LENGTH        12
+#define IMX676_MIN_SHR0_RHS1_DIST           4
+#define IMX676_MIN_SHR1_LENGTH              10
+#define IMX676_MIN_INTEGRATION_LINES        10
+#define IMX676_MAX_VS_INTEGRATION_LINES     66
+#define IMX676_MIN_VS_INTEGRATION_LINES  10
+
 #define IMX676_10BIT_INTEGRATION_OFFSET 1
 #define IMX676_12BIT_INTEGRATION_OFFSET 2
 
@@ -68,17 +75,32 @@
 
 #define IMX676_MAX_BOUNDS_WIDTH 3552
 #define IMX676_MAX_BOUNDS_HEIGHT 3940
-#define IMX676_LINE_TIME 8458 /* in ns */
+
+#define IMX676_BRL       3092
+#define IMX676_LINE_TIME 8458 // in ns
 
 #define V4L2_CID_DATA_RATE		(V4L2_CID_USER_IMX_BASE + 1)
 #define V4L2_CID_SYNC_MODE		(V4L2_CID_USER_IMX_BASE + 2)
 #define V4L2_CID_FRAME_RATE		(V4L2_CID_USER_IMX_BASE + 3)
+#define V4L2_CID_VS_EXP			(V4L2_CID_USER_IMX_BASE + 4)
+#define V4L2_CID_VS_GAIN		(V4L2_CID_USER_IMX_BASE + 5)
+#define V4L2_CID_EXP_GAIN		(V4L2_CID_USER_IMX_BASE + 6)
+#define V4L2_NUM_CTRLS			10
 
 static const struct of_device_id imx676_of_match[] = {
 	{ .compatible = "framos,imx676" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx676_of_match);
+enum mode_index {
+	IMX676_ALL_PIXEL_INDEX,
+	IMX676_CROP_INDEX,
+	IMX676_BINNING_INDEX,
+	IMX676_BINNING_CROP_INDEX,
+	IMX676_DOL_INDEX,
+	IMX676_CLEAR_INDEX,
+	IMX676_MAX_INDEX
+};
 
 const char * const data_rate_menu[] = {
 	[IMX676_2376_MBPS] = "2376 Mbps/lane",
@@ -183,6 +205,45 @@ static struct v4l2_ctrl_config imx676_ctrl_framerate[] = {
 	},
 };
 
+static struct v4l2_ctrl_config imx676_ctrl_vs_exp[] = {
+	{
+		.ops = &imx676_ctrl_ops,
+		.id = V4L2_CID_VS_EXP,
+		.name = "VS exposure",
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.min = 1,
+		.max = 10000,
+		.def = 100,
+		.step = 1,
+	},
+};
+
+static struct v4l2_ctrl_config imx676_ctrl_vs_gain[] = {
+	{
+		.ops = &imx676_ctrl_ops,
+		.id = V4L2_CID_VS_GAIN,
+		.name = "VS gain",
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.min = 0,
+		.max = 720,
+		.def = 0,
+		.step = 1,
+	},
+};
+
+static struct v4l2_ctrl_config imx676_ctrl_exp_gain[] = {
+	{
+		.ops = &imx676_ctrl_ops,
+		.id = V4L2_CID_EXP_GAIN,
+		.name = "Exponential gain",
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.min = 30,
+		.max = 180,
+		.def = 30,
+		.step = 1,
+	},
+};
+
 struct imx676_ctrls {
 	struct v4l2_ctrl_handler handler;
 	struct v4l2_ctrl *exposure;
@@ -192,6 +253,9 @@ struct imx676_ctrls {
 	struct v4l2_ctrl *black_level;
 	struct v4l2_ctrl *data_rate;
 	struct v4l2_ctrl *sync_mode;
+	struct v4l2_ctrl *vs_exp;
+	struct v4l2_ctrl *vs_gain;
+	struct v4l2_ctrl *exp_gain;
 };
 
 struct imx676 {
@@ -230,7 +294,7 @@ static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
 
 static struct vvcam_mode_info_s pimx676_mode_info[] = {
 	{
-		.index		= 0,
+		.index		= IMX676_ALL_PIXEL_INDEX,
 		.size		= {
 			.bounds_width	= IMX676_DEFAULT_WIDTH,
 			.bounds_height	= IMX676_DEFAULT_HEIGHT,
@@ -273,7 +337,7 @@ static struct vvcam_mode_info_s pimx676_mode_info[] = {
 		.reg_data_count = ARRAY_SIZE(imx676_init_setting),
 	},
 	{
-		.index		= 1,
+		.index		= IMX676_CROP_INDEX,
 		.size		= {
 			.bounds_width	= IMX676_CROP_3552x2160_WIDTH,
 			.bounds_height	= IMX676_CROP_3552x2160_HEIGHT,
@@ -316,7 +380,7 @@ static struct vvcam_mode_info_s pimx676_mode_info[] = {
 		.reg_data_count	= ARRAY_SIZE(imx676_init_setting),
 	},
 	{
-		.index		= 2,
+		.index		= IMX676_BINNING_INDEX,
 		.size		= {
 			.bounds_width	= IMX676_MODE_BINNING_H2V2_WIDTH,
 			.bounds_height	= IMX676_MODE_BINNING_H2V2_HEIGHT,
@@ -359,7 +423,7 @@ static struct vvcam_mode_info_s pimx676_mode_info[] = {
 		.reg_data_count	= ARRAY_SIZE(imx676_init_setting),
 	},
 	{
-		.index		= 3,
+		.index		= IMX676_BINNING_CROP_INDEX,
 		.size		= {
 			.bounds_width	= IMX676_CROP_BINNING_1768x1080_WIDTH,
 			.bounds_height	= IMX676_CROP_BINNING_1768x1080_HEIGHT,
@@ -400,6 +464,123 @@ static struct vvcam_mode_info_s pimx676_mode_info[] = {
 		},
 		.preg_data	= imx676_init_setting,
 		.reg_data_count	= ARRAY_SIZE(imx676_init_setting),
+	},
+	{
+		.index          = IMX676_DOL_INDEX,
+		/* Return to all pixel size settings once NXP updates software */
+		.size           = {
+			.bounds_width  = IMX676_DEFAULT_WIDTH,
+			.bounds_height = IMX676_HDR_HEIGHT,
+			.top           = 0,
+			.left          = 0,
+			.width         = IMX676_DEFAULT_WIDTH,
+			.height        = IMX676_HDR_HEIGHT,
+		},
+		.hdr_mode       = SENSOR_MODE_HDR_STITCH,
+		.stitching_mode = SENSOR_STITCHING_L_AND_S,
+		.bit_width      = 10,
+		.data_compress  = {
+			.enable = 0,
+		},
+		.bayer_pattern = BAYER_RGGB,
+		.ae_info = {
+			.def_frm_len_lines     = IMX676_MAX_BOUNDS_HEIGHT,
+			.curr_frm_len_lines    = IMX676_MAX_BOUNDS_HEIGHT,
+			.one_line_exp_time_ns  = IMX676_LINE_TIME,
+
+			// this conditions might be relaxed
+			.max_vsintegration_line = IMX676_MAX_VS_INTEGRATION_LINES,
+			.min_vsintegration_line = IMX676_MIN_VS_INTEGRATION_LINES,
+
+			// reduce max integration line for short exposure to allow vs exposure
+			.max_integration_line  = 2 * IMX676_MAX_BOUNDS_HEIGHT - IMX676_MAX_VS_INTEGRATION_LINES,
+			.min_integration_line  = IMX676_MIN_INTEGRATION_LINES,
+
+			.max_again             = 32382,    // 30 db
+			.min_again             = 1 * 1024, // 0 db
+			.max_dgain             = 4044235,  // 42 db
+			.min_dgain             = 1 * 1024, // 0 db
+
+			.max_short_again       = 32382,    // 30 db
+			.min_short_again       = 1 * 1024, // 0 db
+			.max_short_dgain       = 4044235,  // 42 db,
+			.min_short_dgain       = 1 * 1024, // 0 db,
+
+			// not used at the moment, read from xml
+			.hdr_ratio = {
+				.ratio_s_vs = 8 * 1024,  // was 8
+				//.ratio_l_s = 0 * 1024,   // was 0
+				.accuracy = 1024,
+			},
+			.start_exposure        = 10000 * 1024, // 10000 * 1024,
+			.cur_fps               = 15 * 1024,
+			.max_fps               = 15 * 1024,
+			.min_fps               = 1 * 1024,
+			.min_afps              = 1 * 1024,
+			.int_update_delay_frm  = 1,
+			.gain_update_delay_frm = 1,
+		},
+		.mipi_info = {
+			.mipi_lane = 4,
+		},
+		.preg_data      = imx676_init_setting,
+		.reg_data_count = ARRAY_SIZE(imx676_init_setting),
+	},
+	{
+		.index          = IMX676_CLEAR_INDEX,
+		/* Return to all pixel size settings once NXP updates software */
+		.size           = {
+			.bounds_width  = IMX676_DEFAULT_WIDTH,
+			.bounds_height = IMX676_HDR_HEIGHT,
+			.top           = 0,
+			.left          = 0,
+			.width         = IMX676_DEFAULT_WIDTH,
+			.height        = IMX676_HDR_HEIGHT,
+		},
+		.hdr_mode       = SENSOR_MODE_HDR_STITCH,
+		.stitching_mode = SENSOR_STITCHING_DUAL_DCG_NOWAIT,
+		.bit_width      = 10,
+		.data_compress  = {
+			.enable = 0,
+		},
+		.bayer_pattern = BAYER_RGGB,
+		.ae_info = {
+			.def_frm_len_lines     = IMX676_MAX_BOUNDS_HEIGHT * 2,
+			.curr_frm_len_lines    = IMX676_MAX_BOUNDS_HEIGHT * 2,
+			.one_line_exp_time_ns  = IMX676_LINE_TIME,
+
+			.max_integration_line  = IMX676_MAX_BOUNDS_HEIGHT * 2 - 4,
+			.min_integration_line  = 8,
+
+			.max_again             = 16229,    // 24 db
+			.min_again             = 1 * 1024, // 0 db
+			.max_dgain             = 1 * 1024, // 0 db
+			.min_dgain             = 1 * 1024, // 0 db
+
+			.max_long_again = 32382,           // 30 db
+			.min_long_again = 2886,            // 9 db
+			.max_long_dgain = 16229,           // 24 db
+			.min_long_dgain = 1 * 1024,        // 0 db
+
+			.hdr_ratio = {
+				//.ratio_l_s = 8 * 1024,
+				.ratio_s_vs = 8 * 1024,
+				.accuracy = 1024,
+			},
+
+			.start_exposure        = 10000 * 1024, // 30000 * 1024,
+			.cur_fps               = 15 * 1024,
+			.max_fps               = 15 * 1024,
+			.min_fps               = 1 * 1024,
+			.min_afps              = 1 * 1024,
+			.int_update_delay_frm  = 1,
+			.gain_update_delay_frm = 1,
+		},
+		.mipi_info = {
+			.mipi_lane = 4,
+		},
+		.preg_data      = imx676_init_setting,
+		.reg_data_count = ARRAY_SIZE(imx676_init_setting),
 	},
 };
 
@@ -557,7 +738,6 @@ static int imx676_write_reg_arry(struct imx676 *sensor,
 
 static int imx676_power_on(struct imx676 *sensor)
 {
-
 	mutex_lock(&sensor->lock);
 	if (strcmp(sensor->gmsl, "gmsl")) {
 		if (!gpio_is_valid(sensor->rst_gpio)) {
@@ -580,7 +760,6 @@ static int imx676_power_on(struct imx676 *sensor)
 
 static int imx676_power_off(struct imx676 *sensor)
 {
-
 	mutex_lock(&sensor->lock);
 	if (strcmp(sensor->gmsl, "gmsl")) {
 		if (!gpio_is_valid(sensor->rst_gpio)) {
@@ -748,7 +927,7 @@ static int imx676_adjust_hmax_register(struct imx676 *sensor)
 
 	sensor->cur_mode.ae_info.one_line_exp_time_ns = (hmax*IMX676_G_FACTOR) / IMX676_1ST_INCK;
 
-	pr_info("%s:  HMAX: %u\n", __func__, hmax);
+	pr_debug("%s:  HMAX: %u\n", __func__, hmax);
 
 	return 0;
 }
@@ -764,7 +943,7 @@ static int imx676_change_data_rate(struct imx676 *sensor, u32 data_rate)
 	ret = imx676_read_reg(sensor, LANEMODE, &current_lane_mode);
 
 	if (current_lane_mode == IMX676_TWO_LANE_MODE) {
-		pr_info("%s: 2 lane mode is not supported, switching to 4 lane mode\n",
+		pr_warn("%s: 2 lane mode is not supported, switching to 4 lane mode\n",
 									__func__);
 		imx676_write_reg(sensor, LANEMODE, IMX676_FOUR_LANE_MODE);
 	}
@@ -785,7 +964,7 @@ static int imx676_change_data_rate(struct imx676 *sensor, u32 data_rate)
 			dev_warn(dev, "%s: Selected data rate is not supported in 4 lane binning mode, switching to 891 binning mode!\n",
 				__func__);
 			data_rate = IMX676_891_MBPS;
-			break;
+			goto change_datarate;
 		default:
 			break;
 		}
@@ -798,13 +977,14 @@ static int imx676_change_data_rate(struct imx676 *sensor, u32 data_rate)
 			dev_warn(dev, "%s: Selected data rate is not supported in 4 CSI lane non binning mode, switching to default 1188 mode!\n",
 				__func__);
 			data_rate = IMX676_1188_MBPS;
-			break;
+			goto change_datarate;
 		case IMX676_1188_MBPS:
 		case IMX676_594_MBPS:
 			if (sensor->format.code == MEDIA_BUS_FMT_SRGGB12_1X12) {
 				dev_warn(dev, "%s: Selected data rate is not supported with 12 bit mode, switching to 720 mode!\n",
 					__func__);
 				data_rate = IMX676_720_MBPS;
+				goto change_datarate;
 			}
 			break;
 		case IMX676_1440_MBPS:
@@ -813,15 +993,23 @@ static int imx676_change_data_rate(struct imx676 *sensor, u32 data_rate)
 				dev_warn(dev, "%s: Selected data rate is not supported with 10 bit mode, switching to 1188 mode!\n",
 					__func__);
 				data_rate = IMX676_1188_MBPS;
+				goto change_datarate;
 			}
 			break;
 		}
 	}
 
-	dev_warn(dev, "%s: Setting data rate to value: %u\n", __func__,
+	dev_info(dev, "%s: Setting data rate to value: %u\n", __func__,
 							data_rate);
 	ret = imx676_write_reg(sensor, DATARATE_SEL, data_rate);
-	return 0;
+
+
+	return ret;
+change_datarate:
+	ret = imx676_write_reg(sensor, DATARATE_SEL, data_rate);
+	sensor->ctrls.data_rate->val = data_rate;
+	sensor->ctrls.data_rate->cur.val = data_rate;
+	return ret;
 }
 
 static int imx676_set_data_rate(struct imx676 *sensor, u32 data_rate)
@@ -863,7 +1051,7 @@ static int imx676_configure_triggering_pins(struct imx676 *sensor)
 	u8 extmode;
 	u8 xvs_xhs_drv = 0xF;
 
-	pr_info("enter %s function", __func__);
+	pr_debug("enter %s function", __func__);
 
 	err = imx676_read_reg(sensor, EXTMODE, &extmode);
 
@@ -903,7 +1091,7 @@ static int imx676_set_sync_mode(struct imx676 *sensor, u32 val)
 	int err = 0;
 	u8 extmode = 0;
 
-	pr_info("enter %s sync mode %u\n", __func__, val);
+	pr_debug("enter %s sync mode %u\n", __func__, val);
 
 	if (val == EXTERNAL_SYNC)
 		extmode = 5;
@@ -932,10 +1120,11 @@ static int imx676_set_exp(struct imx676 *sensor, u32 exp, unsigned int which_con
 	int ret = 0;
 	u32 integration_time_line;
 	u32 reg_shr0 = 0;
+	u32 min_shr0;
 	u32 frame_length;
 
-	pr_info("enter %s exposure received: %u control: %u\n", __func__,
-						exp >> 10, which_control);
+	pr_debug("enter %s exposure received: %u control: %u\n", __func__, exp, which_control);
+
 	frame_length = sensor->cur_mode.ae_info.curr_frm_len_lines;
 
 	/* from ISP driver */
@@ -948,19 +1137,49 @@ static int imx676_set_exp(struct imx676 *sensor, u32 exp, unsigned int which_con
 		integration_time_line = exp * IMX676_K_FACTOR /
 				sensor->cur_mode.ae_info.one_line_exp_time_ns;
 	}
+	if (integration_time_line > sensor->cur_mode.ae_info.max_integration_line) {
+		pr_info("%s: setting integration time to max value %u\n", __func__,
+			sensor->cur_mode.ae_info.max_integration_line);
+		integration_time_line = sensor->cur_mode.ae_info.max_integration_line;
+	}
 
-	reg_shr0 = frame_length - integration_time_line;
+	if (integration_time_line < sensor->cur_mode.ae_info.min_integration_line) {
+		pr_info("%s: setting integration time to min value %u\n", __func__,
+			sensor->cur_mode.ae_info.min_integration_line);
+		integration_time_line = sensor->cur_mode.ae_info.min_integration_line;
+		}
+	if (sensor->cur_mode.index == IMX676_DOL_INDEX) {
+		reg_shr0 = 2 * frame_length - integration_time_line;
 
-	/* Value must be multiple of 2 */
-	reg_shr0 = (reg_shr0 % 2) ? reg_shr0 + 1 : reg_shr0;
+		// this should never happen - keep as sanity check
+		if (reg_shr0 > (2 * frame_length - IMX676_MIN_INTEGRATION_LINES)) {
+			pr_err("%s reg_shr0 too large: %u\n", __func__, reg_shr0);
+			reg_shr0 = 2 * frame_length - IMX676_MIN_INTEGRATION_LINES;
+			pr_err("%s setting reg_shr0 to : %u\n", __func__, reg_shr0);
+		}
+		// must be divisible by four in dol case
+		reg_shr0 = reg_shr0 - (reg_shr0 % 4);
+	} else
+		reg_shr0 = frame_length - integration_time_line;
 
 	if (reg_shr0 < IMX676_MIN_SHR0_LENGTH)
 		reg_shr0 = IMX676_MIN_SHR0_LENGTH;
 	else if (reg_shr0 > (frame_length - IMX676_MIN_INTEGRATION_LINES))
 		reg_shr0 = frame_length - IMX676_MIN_INTEGRATION_LINES;
 
-	pr_info("enter %s exposure register: %u integration_time_line: %u\n",
-				__func__, reg_shr0, integration_time_line);
+	// Sanity check
+	switch (sensor->cur_mode.index) {
+	case IMX676_DOL_INDEX:
+	case IMX676_CLEAR_INDEX:
+		min_shr0 = IMX676_MIN_SHR0_CLEAR_LENGTH;
+		break;
+	default:
+		min_shr0 = IMX676_MIN_SHR0_LENGTH;
+		break;
+	}
+
+	reg_shr0 = max_t(u32, min_shr0, reg_shr0);
+	pr_debug("%s: exposure register: %u integration_time_line: %u\n", __func__, reg_shr0, integration_time_line);
 	ret = imx676_write_reg(sensor, REGHOLD, 1);
 	ret |= imx676_write_reg(sensor, SHR0_HIGH, (reg_shr0 >> 16) & 0xff);
 	ret |= imx676_write_reg(sensor, SHR0_MID, (reg_shr0 >> 8) & 0xff);
@@ -971,6 +1190,95 @@ static int imx676_set_exp(struct imx676 *sensor, u32 exp, unsigned int which_con
 		pr_err("%s Failed to set exposure exp: %u, shr register:  %u\n",
 							__func__, exp, reg_shr0);
 	}
+	return ret;
+}
+
+static int imx676_get_exp_register(struct imx676 *sensor, u32 *reg_shr0)
+{
+	int ret = 0;
+	u8 val = 0;
+
+	ret = imx676_read_reg(sensor, SHR0_HIGH, &val);
+	*reg_shr0 = val;
+	ret |= imx676_read_reg(sensor, SHR0_MID, &val);
+	*reg_shr0 = (*reg_shr0 << 8) + val;
+	ret |= imx676_read_reg(sensor, SHR0_LOW, &val);
+	*reg_shr0 = (*reg_shr0 << 8) + val;
+
+	return ret;
+}
+
+static int imx676_set_vs_exp(struct imx676 *sensor, u32 exp, unsigned int which_control)
+{
+	int ret = 0;
+	u32 reg_shr0 = 0;
+	u32 integration_time_line;
+	u32 frame_length;
+	u32 reg_rhs1 = 5;
+	u32 reg_shr1 = IMX676_MIN_SHR1_LENGTH;
+
+	pr_debug("enter %s vs exposure received: %u\n", __func__, exp);
+
+	ret = imx676_get_exp_register(sensor, &reg_shr0);
+	if (ret < 0) {
+		pr_err("%s Failed to read short exposure: unable to set vs exposure\n", __func__);
+		return ret;
+	}
+
+	frame_length = sensor->cur_mode.ae_info.curr_frm_len_lines;
+
+	if (which_control == 0) { // from ISP driver
+		pr_debug("%s: vs_exposure %u\n", __func__, (exp >> 10));
+		integration_time_line = ((exp >> 10)
+		   * IMX676_K_FACTOR) / sensor->cur_mode.ae_info.one_line_exp_time_ns;
+	} else {  // from V4L2 control
+		pr_debug("%s: vs_exposure: %u\n", __func__, exp);
+		integration_time_line = (exp * IMX676_K_FACTOR) / sensor->cur_mode.ae_info.one_line_exp_time_ns;
+	}
+	pr_debug("%s: integration_time_line: %u\n", __func__, integration_time_line);
+
+	if (integration_time_line < sensor->cur_mode.ae_info.min_vsintegration_line) {
+		pr_warn("%s vs integration line too small: setting to %u\n", __func__,
+			sensor->cur_mode.ae_info.min_vsintegration_line);
+		integration_time_line = sensor->cur_mode.ae_info.min_vsintegration_line;
+	}
+
+	if (integration_time_line > sensor->cur_mode.ae_info.max_vsintegration_line) {
+		pr_warn("%s vs integration line too large: setting to %u\n", __func__,
+			sensor->cur_mode.ae_info.max_vsintegration_line);
+		integration_time_line = sensor->cur_mode.ae_info.max_vsintegration_line;
+	}
+
+	// set rhs1 register to maximal value by datasheet conditions
+	reg_rhs1 = reg_shr0 - IMX676_MIN_SHR0_RHS1_DIST;
+	reg_rhs1 = min_t(u32, 2 * IMX676_BRL - 2, reg_rhs1);
+
+	// sanity check this should never happen
+	if (reg_shr0 <= reg_rhs1) {
+		pr_warn("%s Invalid values for reg_rhs1 %u, reg_shr0: %u  :\n", __func__, reg_rhs1, reg_shr0);
+		reg_rhs1 = reg_shr0 - IMX676_MIN_SHR0_RHS1_DIST;
+	}
+
+	if (reg_rhs1 - reg_shr1 > integration_time_line) {
+		reg_rhs1 = integration_time_line + reg_shr1;
+		reg_rhs1 = reg_rhs1 - (reg_rhs1 % 4) + 2;
+	} else {
+		pr_warn(" %s: integration time for vs exposure %d too large\n", __func__, integration_time_line);
+	}
+
+	pr_debug("%s: changed vs_exposure:  register values shr1: %u rhs1: %u\n", __func__, reg_shr1, reg_rhs1);
+	ret = imx676_write_reg(sensor, REGHOLD, 1);
+	ret |= imx676_write_reg(sensor, SHR1_LOW, reg_shr1);
+	ret |= imx676_write_reg(sensor, RHS1_LOW, reg_rhs1 & 0xff);
+	ret |= imx676_write_reg(sensor, RHS1_MID, (reg_rhs1 >> 8) & 0xff);
+	ret |= imx676_write_reg(sensor, RHS1_HIGH, (reg_rhs1 >> 16) & 0xff);
+	ret |= imx676_write_reg(sensor, REGHOLD, 0);
+
+	if (ret < 0) {
+		pr_err("%s Failed to set vs exposure :\n", __func__);
+		return ret;
+	}
+
 	return ret;
 }
 
@@ -1021,9 +1329,9 @@ static int imx676_set_gain(struct imx676 *sensor, u32 gain, unsigned int which_c
 {
 	int ret = 0;
 	u32 gain_reg = 0;
+	u32 max_clear_hdr_gain = 80;
 
-	pr_info("enter %s: gain received: %u control: %u\n", __func__, gain,
-								which_control);
+	pr_debug("enter %s: gain received: %u control: %u\n", __func__, gain, which_control);
 
 	if (which_control == 0) { /* from isp */
 		gain_reg = imx676_get_gain_reg(gain);
@@ -1032,12 +1340,104 @@ static int imx676_set_gain(struct imx676 *sensor, u32 gain, unsigned int which_c
 				 (IMX676_MAX_GAIN_DB * 10);
 	}
 
-	pr_info("%s: gain register: %u\n", __func__, gain_reg);
+	if (sensor->cur_mode.index == IMX676_CLEAR_INDEX) {
+		if (gain_reg > max_clear_hdr_gain) {
+			pr_warn("%s: gain setting for clear hdr too large setting to 50\n", __func__);
+			gain_reg = max_clear_hdr_gain;
+		}
+	}
+
+	pr_debug("enter %s gain register: %u\n", __func__, gain_reg);
 	ret = imx676_write_reg(sensor, REGHOLD, 1);
-	ret |= imx676_write_reg(sensor, GAIN_1, (gain_reg>>8) & 0xff);
-	ret |= imx676_write_reg(sensor, GAIN_0, gain_reg & 0xff);
+	ret |= imx676_write_reg(sensor, GAIN_0_HIGH, (gain_reg>>8) & 0xff);
+	ret |= imx676_write_reg(sensor, GAIN_0_LOW, gain_reg & 0xff);
 	ret |= imx676_write_reg(sensor, REGHOLD, 0);
 
+	return ret;
+}
+
+static int imx676_get_low_gain(struct imx676 *sensor, u32 *reg_gain)
+{
+	int ret = 0;
+	u8 val = 0;
+
+	ret = imx676_read_reg(sensor, GAIN_0_HIGH, &val);
+	*reg_gain = (*reg_gain << 8) + val;
+	ret |= imx676_read_reg(sensor, GAIN_0_LOW, &val);
+	*reg_gain = (*reg_gain << 8) + val;
+
+	return ret;
+}
+
+static int imx676_set_vs_gain(struct imx676 *sensor, u32 gain, u8 which_control)
+{
+	int ret = 0;
+	u32 gain_reg = 0;
+	const u32 max_vs_gain = 200;
+
+	pr_debug("enter %s: gain received: %u control: %u\n", __func__, gain, which_control);
+
+	if (which_control == 0) {
+		gain_reg = imx676_get_gain_reg(gain);
+	} else { // from v4l2 control
+		gain_reg = gain * IMX676_MAX_GAIN_DEC /
+				 (IMX676_MAX_GAIN_DB * 10);
+	}
+
+	// when vs gain is too large lines occurs on a screen
+	if (gain_reg > max_vs_gain) {
+		gain_reg = max_vs_gain;
+		pr_info("%s: gain register too large, setting gain register to: %u\n", __func__, gain_reg);
+	}
+
+	pr_debug("%s: vs gain register: %u\n", __func__, gain_reg);
+	ret = imx676_write_reg(sensor, REGHOLD, 1);
+	ret |= imx676_write_reg(sensor, GAIN_1_HIGH, (gain_reg>>8) & 0xff);
+	ret |= imx676_write_reg(sensor, GAIN_1_LOW, gain_reg & 0xff);
+	ret |= imx676_write_reg(sensor, REGHOLD, 0);
+
+	return ret;
+}
+
+static int imx676_set_exp_gain(struct imx676 *sensor, u32 gain, u8 which_control)
+{
+	int ret = 0;
+	u32 gain_reg;
+	u32 low_gain = 0;
+	const u32 max_exp_gain = 180;
+	const u32 min_exp_gain = 30;
+
+	ret = imx676_get_low_gain(sensor, &low_gain);
+	if (ret < 0) {
+		pr_err("%s Failed to read short exposure: unable to get lower gain value\n", __func__);
+		return ret;
+	}
+
+	pr_debug("enter %s: exp gain received: %u control: %u\n", __func__, gain, which_control);
+	if (which_control == 0) { // from isp
+		gain_reg = imx676_get_gain_reg(gain);
+	} else { // from v4l2 control
+		gain_reg = gain;
+	}
+
+	// this should never happen
+	if (gain_reg <= low_gain) {
+		gain_reg = low_gain + 1;
+		pr_warn("%s: lower gain is greater than higher gain value  %u\n", __func__, gain_reg);
+	}
+	gain_reg = min_t(u32, max_exp_gain, gain_reg);
+	gain_reg = max_t(u32, min_exp_gain, gain_reg);
+
+	pr_debug("%s: gain register: %u\n", __func__, gain_reg);
+	ret = imx676_write_reg(sensor, REGHOLD, 1);
+	ret |= imx676_write_reg(sensor, GAIN_HG0_HIGH, (gain_reg>>8) & 0xff);
+	ret |= imx676_write_reg(sensor, GAIN_HG0_LOW, gain_reg & 0xff);
+	ret |= imx676_write_reg(sensor, REGHOLD, 0);
+
+	if (ret < 0) {
+		pr_err(" %s: failed to set exp gain: %u\n", __func__, gain);
+		return ret;
+	}
 	return ret;
 }
 
@@ -1046,7 +1446,7 @@ static int imx676_set_black_level(struct imx676 *sensor, s64 val, u32 which_cont
 	int ret = 0;
 	s64 black_level_reg;
 
-	pr_info("enter %s black level: %lld\n",  __func__, val);
+	pr_debug("enter %s black level: %lld\n",  __func__, val);
 
 	if (sensor->format.code == MEDIA_BUS_FMT_SRGGB10_1X10)
 		black_level_reg = val;
@@ -1071,7 +1471,7 @@ static int imx676_set_fps(struct imx676 *sensor, u32 fps, u8 which_control)
 	u32 line_time;
 	int ret = 0;
 
-	pr_info("enter %s fps received: %u\n", __func__, fps);
+	pr_debug("enter %s fps received: %u\n", __func__, fps);
 	if (which_control == 1)
 		fps = fps << 10;
 
@@ -1082,27 +1482,33 @@ static int imx676_set_fps(struct imx676 *sensor, u32 fps, u8 which_control)
 	else if (fps < sensor->cur_mode.ae_info.min_fps)
 		fps = sensor->cur_mode.ae_info.min_fps;
 	fps_reg = IMX676_G_FACTOR / ((fps >> 10) * line_time);
-	pr_info("enter %s vmax register: %u\n", __func__, fps_reg);
+	if (sensor->cur_mode.index == IMX676_DOL_INDEX) {
+		// in dol case there are two times more lines to read
+		fps_reg = fps_reg / 2;
+	}
+	/* Value must be multiple of 2 */
+	fps_reg = (fps_reg % 2) ? fps_reg + 1 : fps_reg;
+	pr_debug("enter %s vmax register: %u\n", __func__, fps_reg);
 	ret = imx676_write_reg(sensor, REGHOLD, 1);
 	ret |= imx676_write_reg(sensor, VMAX_HIGH, (u8)(fps_reg >> 16) & 0xff);
 	ret |= imx676_write_reg(sensor, VMAX_MID, (u8)(fps_reg >> 8) & 0xff);
 	ret |= imx676_write_reg(sensor, VMAX_LOW, (u8)(fps_reg & 0xff));
 	ret |= imx676_write_reg(sensor, REGHOLD, 0);
 
+	if (ret < 0) {
+		pr_err("%s: failed to set VMAX register\n", __func__);
+		return ret;
+	}
+
 	sensor->cur_mode.ae_info.cur_fps = fps;
 
-	if (sensor->cur_mode.hdr_mode == SENSOR_MODE_LINEAR) {
-		sensor->cur_mode.ae_info.max_integration_line = fps_reg - 4;
-	} else {
-		if (sensor->cur_mode.stitching_mode ==
-			SENSOR_STITCHING_DUAL_DCG){
-			sensor->cur_mode.ae_info.max_vsintegration_line = 44;
-			sensor->cur_mode.ae_info.max_integration_line = fps_reg -
-				4 - sensor->cur_mode.ae_info.max_vsintegration_line;
-		} else {
-			sensor->cur_mode.ae_info.max_integration_line = fps_reg - 4;
-		}
-	}
+	if (sensor->cur_mode.index == IMX676_DOL_INDEX)
+		sensor->cur_mode.ae_info.max_integration_line = 2 * fps_reg - 2 - sensor->cur_mode.ae_info.max_vsintegration_line;
+	else if (sensor->cur_mode.index == IMX676_CLEAR_INDEX)
+		sensor->cur_mode.ae_info.max_integration_line = fps_reg - sensor->cur_mode.ae_info.min_integration_line;
+	else
+		sensor->cur_mode.ae_info.max_integration_line = fps_reg - sensor->cur_mode.ae_info.min_integration_line;
+
 	sensor->cur_mode.ae_info.curr_frm_len_lines = fps_reg;
 	return ret;
 }
@@ -1116,7 +1522,7 @@ static int imx676_set_test_pattern(struct imx676 *sensor, u32 pattern)
 {
 	int ret;
 
-	pr_info("enter %s, pattern = %u\n", __func__, pattern);
+	pr_debug("enter %s, pattern = %u\n", __func__, pattern);
 	if (pattern > 0 && pattern < ARRAY_SIZE(test_pattern_menu)) {
 		ret = imx676_write_reg_arry(sensor,
 			(struct vvcam_sccb_data_s *)mode_enable_pattern_generator,
@@ -1144,19 +1550,16 @@ static int imx676_set_ratio(struct imx676 *sensor, void *pratio)
 	struct sensor_hdr_artio_s hdr_ratio;
 	struct vvcam_ae_info_s *pae_info = &sensor->cur_mode.ae_info;
 
-	pr_debug("enter %s function\n", __func__);
+
 	ret = copy_from_user(&hdr_ratio, pratio, sizeof(hdr_ratio));
 
-	if ((hdr_ratio.ratio_l_s != pae_info->hdr_ratio.ratio_l_s) ||
-		(hdr_ratio.ratio_s_vs != pae_info->hdr_ratio.ratio_s_vs) ||
-		(hdr_ratio.accuracy != pae_info->hdr_ratio.accuracy)) {
-		pae_info->hdr_ratio.ratio_l_s = hdr_ratio.ratio_l_s;
-		pae_info->hdr_ratio.ratio_s_vs = hdr_ratio.ratio_s_vs;
-		pae_info->hdr_ratio.accuracy = hdr_ratio.accuracy;
-		/* imx676 vs exp is limited for isp,so no need update max exp */
-	}
+	// this values are not used at the moment, l_s and s_vs should be the same
+	pae_info->hdr_ratio.ratio_l_s = hdr_ratio.ratio_l_s;
+	pae_info->hdr_ratio.ratio_s_vs = hdr_ratio.ratio_s_vs;
+	// value for passed accuracy is wrong
+	pae_info->hdr_ratio.accuracy = 1024;
 
-	return 0;
+	return ret;
 }
 
 static int imx676_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -1196,6 +1599,15 @@ static int imx676_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_SYNC_MODE:
 		ret = imx676_set_sync_mode(sensor, ctrl->val);
+		break;
+	case V4L2_CID_VS_EXP:
+		ret = imx676_set_vs_exp(sensor, ctrl->val, 1);
+		break;
+	case V4L2_CID_VS_GAIN:
+		ret = imx676_set_vs_gain(sensor, ctrl->val, 1);
+		break;
+	case V4L2_CID_EXP_GAIN:
+		ret = imx676_set_exp_gain(sensor, ctrl->val, 1);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1289,19 +1701,32 @@ static int imx676_set_pixel_format(struct imx676 *sensor)
 {
 	int err;
 
-	switch (sensor->format.code) {
-	case MEDIA_BUS_FMT_SRGGB10_1X10:
-		err = imx676_write_reg_arry(sensor,
+	if ((sensor->cur_mode.bit_width == 10) && (sensor->cur_mode.index == IMX676_CLEAR_INDEX))
+		err = imx676_write_reg_arry(
+			sensor,
+			(struct vvcam_sccb_data_s *)imx676_10bit_mode_clearHDR,
+			ARRAY_SIZE(imx676_10bit_mode_clearHDR));
+	else if (sensor->cur_mode.bit_width == 10)
+		err = imx676_write_reg_arry(
+			sensor,
 			(struct vvcam_sccb_data_s *)imx676_10bit_mode,
 			ARRAY_SIZE(imx676_10bit_mode));
-		break;
-	case MEDIA_BUS_FMT_SRGGB12_1X12:
-		err = imx676_write_reg_arry(sensor,
+	else if ((sensor->cur_mode.bit_width == 12) && (sensor->cur_mode.index == IMX676_CLEAR_INDEX))
+		err = imx676_write_reg_arry(
+			sensor,
+			(struct vvcam_sccb_data_s *)imx676_12bit_mode_clearHDR,
+			ARRAY_SIZE(imx676_12bit_mode_clearHDR));
+	else if (sensor->cur_mode.bit_width == 12)
+		err = imx676_write_reg_arry(
+			sensor,
 			(struct vvcam_sccb_data_s *)imx676_12bit_mode,
 			ARRAY_SIZE(imx676_12bit_mode));
-		break;
-	default:
+	else {
 		pr_err("%s: unknown pixel format\n", __func__);
+		return -EINVAL;
+	}
+	if (err < 0) {
+		pr_err("%s:i2c error, unable to set pixel format\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1477,14 +1902,6 @@ static int imx676_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	sensor->format = fmt->format;
 
-	ret = imx676_set_pixel_format(sensor);
-	if (ret < 0) {
-		pr_err("%s:imx676_write_reg_arry error, failed to set pixel format\n",
-			__func__);
-		mutex_unlock(&sensor->lock);
-		return -EINVAL;
-	}
-
 	ret = imx676_write_reg_arry(sensor,
 		(struct vvcam_sccb_data_s *)sensor->cur_mode.preg_data,
 		sensor->cur_mode.reg_data_count);
@@ -1493,69 +1910,72 @@ static int imx676_set_fmt(struct v4l2_subdev *sd,
 		mutex_unlock(&sensor->lock);
 		return -EINVAL;
 	}
-
-	if (sensor->cur_mode.size.bounds_height == IMX676_DEFAULT_HEIGHT) {
-		ret = imx676_write_reg_arry(sensor,
-					(struct vvcam_sccb_data_s *)mode_3552x3092,
-					ARRAY_SIZE(mode_3552x3092));
-		if (ret < 0) {
-			pr_err("%s:imx676_write_reg_arry error, failed to set up resolution\n",
-				__func__);
-			return -EINVAL;
-		}
-		ret = imx676_set_data_rate(sensor, IMX676_1188_MBPS);
-		if (ret < 0) {
-			pr_err("%s:imx676_write_reg_arry error, failed to set data rate\n",
-				__func__);
-			return -EINVAL;
-		}
-	} else if (sensor->cur_mode.size.bounds_height == IMX676_CROP_3552x2160_HEIGHT) {
-		ret = imx676_write_reg_arry(sensor,
-					(struct vvcam_sccb_data_s *)mode_crop_3552x2160,
-					ARRAY_SIZE(mode_crop_3552x2160));
-		if (ret < 0) {
-			pr_err("%s:imx676_write_reg_arry error, failed to set up resolution\n",
-				__func__);
-			return -EINVAL;
-		}
-		ret = imx676_set_data_rate(sensor, IMX676_1188_MBPS);
-		if (ret < 0) {
-			pr_err("%s:imx676_write_reg_arry error, failed to set data rate\n",
-				__func__);
-			return -EINVAL;
-		}
-	} else if (sensor->cur_mode.size.bounds_height == IMX676_MODE_BINNING_H2V2_HEIGHT) {
-		ret = imx676_write_reg_arry(sensor,
-					(struct vvcam_sccb_data_s *)mode_h2v2_binning,
-					ARRAY_SIZE(mode_h2v2_binning));
-		if (ret < 0) {
-			pr_err("%s:imx676_write_reg_arry error, failed to set up resolution\n",
-				__func__);
-			return -EINVAL;
-		}
-		ret = imx676_set_data_rate(sensor, IMX676_891_MBPS);
-		if (ret < 0) {
-			pr_err("%s:imx676_write_reg_arry error, failed to set data rate\n",
-				__func__);
-			return -EINVAL;
-		}
-	} else if (sensor->cur_mode.size.bounds_height == IMX676_CROP_BINNING_1768x1080_HEIGHT) {
-		ret = imx676_write_reg_arry(sensor,
-					(struct vvcam_sccb_data_s *)mode_crop_binning_1768x1080,
-					ARRAY_SIZE(mode_crop_binning_1768x1080));
-		if (ret < 0) {
-			pr_err("%s:imx676_write_reg_arry error, failed to set up resolution\n",
-				__func__);
-			return -EINVAL;
-		}
-		ret = imx676_set_data_rate(sensor, IMX676_891_MBPS);
-		if (ret < 0) {
-			pr_err("%s:imx676_write_reg_arry error, failed to set data rate\n",
-				__func__);
-			return -EINVAL;
-		}
+	ret = imx676_set_pixel_format(sensor);
+	if (ret < 0) {
+		pr_err("%s:imx676_write_reg_arry error, failed to set pixel format\n",
+			__func__);
+		mutex_unlock(&sensor->lock);
+		return -EINVAL;
 	}
 
+	switch (sensor->cur_mode.index) {
+	case IMX676_ALL_PIXEL_INDEX:
+		pr_info("%s:Setting mode 0 ", __func__);
+		ret = imx676_write_reg_arry(sensor, (struct vvcam_sccb_data_s *)mode_3552x3092, ARRAY_SIZE(mode_3552x3092));
+		if (ret < 0) {
+			pr_err("%s:imx676_write_reg_arry error, failed to set up resolution\n", __func__);
+			return -EINVAL;
+		}
+		break;
+	case IMX676_CROP_INDEX:
+		pr_info("%s:Setting mode 1 ", __func__);
+		ret = imx676_write_reg_arry(sensor, (struct vvcam_sccb_data_s *)mode_crop_3552x2160, ARRAY_SIZE(mode_crop_3552x2160));
+		if (ret < 0) {
+			pr_err("%s:imx676_write_reg_arry error, failed to set up resolution\n", __func__);
+			return -EINVAL;
+		}
+		break;
+	case IMX676_BINNING_INDEX:
+		pr_info("%s:Setting mode 2 ", __func__);
+		ret = imx676_write_reg_arry(sensor, (struct vvcam_sccb_data_s *)mode_h2v2_binning, ARRAY_SIZE(mode_h2v2_binning));
+		if (ret < 0) {
+			pr_err("%s:imx676_write_reg_arry error, failed to set up resolution\n", __func__);
+			return -EINVAL;
+		}
+		break;
+	case IMX676_BINNING_CROP_INDEX:
+		pr_info("%s:Setting mode 3 ", __func__);
+		ret = imx676_write_reg_arry(sensor, (struct vvcam_sccb_data_s *)mode_crop_binning_1768x1080, ARRAY_SIZE(mode_crop_binning_1768x1080));
+		if (ret < 0) {
+			pr_err("%s:imx676_write_reg_arry error, failed to set up resolution\n", __func__);
+			return -EINVAL;
+		}
+		break;
+	case IMX676_DOL_INDEX:
+		pr_info("%s:Setting mode 4 ", __func__);
+		ret = imx676_write_reg_arry(sensor, (struct vvcam_sccb_data_s *)imx676_setting_dol_hdr, ARRAY_SIZE(imx676_setting_dol_hdr));
+		if (ret < 0) {
+			pr_err("%s:imx676_write_reg_arry error, failed to set up resolution\n", __func__);
+			return -EINVAL;
+		}
+		break;
+	case IMX676_CLEAR_INDEX:
+		pr_info("%s:Setting mode 5 ", __func__);
+		ret = imx676_write_reg_arry(sensor, (struct vvcam_sccb_data_s *)imx676_setting_clear_hdr, ARRAY_SIZE(imx676_setting_clear_hdr));
+		if (ret < 0) {
+			pr_err("%s:imx676_write_reg_arry error, failed to set up resolution\n", __func__);
+		return -EINVAL;
+		}
+		break;
+	default:
+		break;
+	}
+
+	ret = imx676_s_ctrl(sensor->ctrls.data_rate);
+	if (ret < 0) {
+		pr_err("%s:unable to set data rate\n", __func__);
+		return -EINVAL;
+	}
 	mutex_unlock(&sensor->lock);
 	return 0;
 }
@@ -1580,7 +2000,7 @@ static long imx676_priv_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *ar
 	long ret = 0;
 	struct vvcam_sccb_data_s sensor_reg;
 
-	pr_info("enter %s %u\n", __func__, cmd);
+	pr_debug("enter %s %u\n", __func__, cmd);
 	mutex_lock(&sensor->lock);
 	switch (cmd) {
 	case VVSENSORIOC_S_POWER:
@@ -1637,16 +2057,16 @@ static long imx676_priv_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *ar
 		ret = imx676_set_exp(sensor, *(u32 *)arg, 0);
 		break;
 	case VVSENSORIOC_S_VSEXP:
-		ret = 0;
+		ret = imx676_set_vs_exp(sensor, *(u32 *)arg, 0);
 		break;
 	case VVSENSORIOC_S_LONG_GAIN:
-		ret = 0;
+		ret = imx676_set_exp_gain(sensor, *(u32 *)arg, 0);
 		break;
 	case VVSENSORIOC_S_GAIN:
 		ret = imx676_set_gain(sensor, *(u32 *)arg, 0);
 		break;
 	case VVSENSORIOC_S_VSGAIN:
-		ret = 0;
+		ret = imx676_set_vs_gain(sensor, *(u32 *)arg, 0);
 		break;
 	case VVSENSORIOC_S_FPS:
 		ret = imx676_set_fps(sensor, *(u32 *)arg, 0);
@@ -1993,7 +2413,7 @@ static int imx676_probe(struct i2c_client *client)
 		sizeof(struct vvcam_mode_info_s));
 
 	/* initialize controls */
-	retval = v4l2_ctrl_handler_init(&sensor->ctrls.handler, 7);
+	retval = v4l2_ctrl_handler_init(&sensor->ctrls.handler, V4L2_NUM_CTRLS);
 	if (retval < 0) {
 		dev_err(&client->dev, "%s : ctrl handler init Failed\n", __func__);
 		goto probe_err_power_off;
@@ -2012,6 +2432,10 @@ static int imx676_probe(struct i2c_client *client)
 	sensor->ctrls.data_rate = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx676_ctrl_data_rate, NULL);
 	sensor->ctrls.sync_mode = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx676_ctrl_sync_mode, NULL);
 	sensor->ctrls.framerate = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx676_ctrl_framerate, NULL);
+	sensor->ctrls.vs_exp = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx676_ctrl_vs_exp, NULL);
+	sensor->ctrls.vs_gain = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx676_ctrl_vs_gain, NULL);
+	sensor->ctrls.exp_gain = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx676_ctrl_exp_gain, NULL);
+
 	sensor->ctrls.test_pattern = v4l2_ctrl_new_std_menu_items(&sensor->ctrls.handler, &imx676_ctrl_ops, V4L2_CID_TEST_PATTERN,
 					ARRAY_SIZE(test_pattern_menu) - 1, 0, 0, test_pattern_menu);
 

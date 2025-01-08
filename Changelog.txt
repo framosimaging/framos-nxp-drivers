@@ -1,4 +1,12 @@
-Framos_v2.0.0 (2024-07-04)
+Framos_v2.1.0 (2025-07-01)
+=========================
+	- add dol HDR and Clear HDR mode
+		- IMX662
+		- IMX676
+		- IMX678
+	- FSM:GO fix frame rates
+
+Framos_v2.0.0 (2024-09-04)
 =========================
 	- support for kernel 6.6.3
 	- FSM:GO modules supported
