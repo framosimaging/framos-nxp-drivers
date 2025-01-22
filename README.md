@@ -1,7 +1,7 @@
 # Framos implementation of image sensor drivers for NXP platform
 
 This repository contains source implementation and binary package for [Framos General Optics modules FSM:GO  ](https://www.framos.com/en/fsmgo?utm_source=google&utm_medium=cpc&utm_campaign=FSM-GO_Product_Launch_2024). Here the implementation for Sony sensors imx662, imx676, imx678 and imx900 is provided with instructions on how to setup a platform, install binaries, compile sources and run a video stream on NXP platform.
-Currently, only i.MX 8M Plus EVK platform is supported.
+Currently, only i.MX 8M Plus EVK platform is supported. Check [wiki pages for release information and limitations](https://github.com/framosimaging/framos-nxp-drivers/wiki)
 
 ## Flashing platform
 
