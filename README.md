@@ -5,10 +5,10 @@ Currently, only i.MX 8M Plus EVK platform is supported. Check [wiki pages for re
 
 ## Flashing platform
 
-In order to install binaries one needs to prepare NXP platform. The full documentation is given at [i.MX 8M Plus EVK Image for NXP kernel Linux 6.6.3_1.0.0](https://www.nxp.com/design/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX). In order to flash SD Card:
+In order to install binaries one needs to prepare NXP platform. The full documentation is given at [i.MX 8M Plus EVK Image for NXP kernel Linux 6.12.3_1.0.0](https://www.nxp.com/design/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX). In order to flash SD Card:
 
-- Download the [image](https://www.nxp.com/webapp/sps/download/license.jsp?colCode=L6.6.3_1.0.0_MX8MP&appType=file1&DOWNLOAD_ID=null).
-- For ﬂashing and booting instructions follow section 4.3 and 4.5 in Linux User Guide in the [documentation](https://www.nxp.com/webapp/Download?colCode=L6.6.3_1.0.0_Docs&location=null). Alternatively, you can use [Balena Etcher](https://etcher.balena.io/) tool to ﬂash one of the following images:
+- Download the [image](https://www.nxp.com/webapp/sps/download/license.jsp?colCode=L6.12.3-1.0.0_MX8MP&appType=file1&DOWNLOAD_ID=null).
+- For ﬂashing and booting instructions follow section 4.3 and 4.5 in Linux User Guide in the [documentation](https://www.nxp.com/docs/en/supporting-information/LF6.12.3_1.0.0-Docs.zip). Alternatively, you can use [Balena Etcher](https://etcher.balena.io/) tool to ﬂash one of the following images:
 	- imx-image-multimedia-imx8mpevk.wic
 	- imx-image-full-imx8mpevk.wic
 - Set SW4 switch to 0011 on the board and connect to the platform debug port via USB to the host and then connect to target using serial port (we used Teraterm with 115200 bauds).
@@ -49,16 +49,16 @@ skip to [test streaming section](#Test-streaming-and-mode-switching-on-target) t
 Prerequisites:
 
 - Installed Ubuntu 20.04 OS or higher on Host System.
-- Downloaded NXP documentation for [Linux version 6.6.3_1.0.0](https://www.nxp.com/design/design-center/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX).
-- Installed Yocto Toolchain 6.6.3_1.0.0 - follow the instructions in i.MX_Yocto_Project_User's_Guide document from documentation.
+- Downloaded NXP documentation for [Linux version 6.12.3_1.0.0](https://www.nxp.com/design/design-center/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX).
+- Installed Yocto Toolchain 6.12.3_1.0.0 - follow the instructions in i.MX_Yocto_Project_User's_Guide document from documentation.
 - Flashed SD card following [instructions](#flashing-platform)
 - Download and build NXP repositories to wanted directory:
    - NXP kernel - linux-imx:
 
      ```bash
      git clone https://github.com/nxp-imx/linux-imx.git
-     git checkout lf-6.6.3-1.0.0
-     . /opt/fsl-imx-wayland/6.6-nanbield/environment-setup-armv8a-poky-linux
+     git checkout lf-6.12.3-1.0.0
+     . /opt/fsl-imx-wayland/6.12-styhead/environment-setup-armv8a-poky-linux
      make mrproper
      make imx_v8_defconfig
      ```
@@ -66,23 +66,23 @@ Prerequisites:
    - isp-imx:
 
      ```bash
-     wget https://www.nxp.com/lgfiles/NMG/MAD/YOCTO/isp-imx-4.2.2.24.1.bin
-     chmod +x isp-imx-4.2.2.24.1.bin
-     ./isp-imx-4.2.2.24.1.bin
+     wget https://www.nxp.com/lgfiles/NMG/MAD/YOCTO/isp-imx-4.2.2.25.1-327f21d.bin
+     chmod +x isp-imx-4.2.2.25.1-327f21d.bin
+     ./isp-imx-4.2.2.25.1-327f21d.bin
      ```
 
    - isp-vvcam
 
      ```bash
      git clone https://github.com/nxp-imx/isp-vvcam.git
-     git checkout lf-6.6.3-1.0.0
+     git checkout lf-6.12.3-1.0.0
      ```
 
-1. Export full path of NXP directory where *linux-imx*, *isp-imx* and *isp-vvcam* are located and activate   toolchain
+1. Export full path of NXP directory where *linux-imx*, *isp-imx* and *isp-vvcam* are located and activate toolchain
 
     ```bash
     export NXP_DIR=<install-path>
-    export TOOLCHAIN=<toolchain-path > # /opt/fsl-imx-wayland/6.6-nanbield/environment-setup-armv8a-poky-linux
+    export TOOLCHAIN=<toolchain-path > # /opt/fsl-imx-wayland/6.12-styhead/environment-setup-armv8a-poky-linux
     ```
 
 2. Clone the Framos git repository to the Home directory on the host system:
@@ -96,7 +96,7 @@ Prerequisites:
 
     ```bash
     cp -r ~/framos-nxp-drivers/linux-imx $NXP_DIR/.
-    cp -r ~/framos-nxp-drivers/isp-imx-4.2.2.24.1 $NXP_DIR/.
+    cp -r ~/framos-nxp-drivers/isp-imx-4.2.2.25.1-327f21d $NXP_DIR/.
     cp -r ~/framos-nxp-drivers/isp-vvcam $NXP_DIR/.
     cp ~/framos-nxp-drivers/cp_to_target.sh $NXP_DIR/. # script for copying files to target
     ```
@@ -114,7 +114,7 @@ Prerequisites:
 
     ```bash
     strings ./arch/arm64/boot/Image | grep "Linux version"
-    export TAG=<kernel-image-tag> # for example 6.6.3-gccf0a99701a7-dirty
+    export TAG=<kernel-image-tag> # for example 6.12.3-g37d02f4dcbbe-dirty
     ```
 
 5. Install kernel modules:
@@ -129,7 +129,7 @@ Prerequisites:
 6. Build isp-imx:
 
     ```bash
-    cd $NXP_DIR/isp-imx-4.2.2.24.1
+    cd $NXP_DIR/isp-imx-4.2.2.25.1-327f21d
     . $TOOLCHAIN
     ./build-all-isp.sh release
     ```
@@ -156,7 +156,7 @@ Prerequisites:
 9. Reboot the target and press any key from terminal to enter u-boot and set the appropriate device tree as fdtﬁle (example for IMX662):
 
     ```bash
-    setenv fdtfile imx8mp-evk-imx900.dtb
+    setenv fdtfile imx8mp-evk-imx662.dtb
     saveenv
     boot
     ```

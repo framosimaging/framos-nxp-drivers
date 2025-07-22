@@ -1,4 +1,8 @@
-Framos_v2.1.0 (2025-07-01)
+Framos_v2.2.0 (2025-07-23)
+=========================
+	- support for kernel 6.12.3
+
+Framos_v2.1.0 (2025-01-07)
 =========================
 	- add dol HDR and Clear HDR mode
 		- IMX662
@@ -15,7 +19,6 @@ Framos_v2.0.0 (2024-09-04)
 		- IMX678
 		- IMX900
 	- GMSL supported
-
 
 Framos_v1.1.0 (2024-07-04)
 =========================

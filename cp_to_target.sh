@@ -27,9 +27,9 @@ scp $NXP_DIR/modules/lib/modules/$TAG/modules* root@$TARGET_IP:$MODULES_DIR
 
 echo "Copying isp media server and isi drivers..."
 echo "Copying /opt/bin folder to ${OPT_BIN}"
-scp -r $NXP_DIR/isp-imx-4.2.2.24.1/build_output_release_partial/opt/imx8-isp/bin root@$TARGET_IP:$OPT_BIN
+scp -r $NXP_DIR/isp-imx-4.2.2.25.1-327f21d/build_output_release_partial/opt/imx8-isp/bin root@$TARGET_IP:$OPT_BIN
 
 echo "Copying isp libraries..."
-scp -r $NXP_DIR/isp-imx-4.2.2.24.1/build_output_release_partial/usr/lib root@$TARGET_IP:$USR_LIB
+scp -r $NXP_DIR/isp-imx-4.2.2.25.1-327f21d/build_output_release_partial/usr/lib root@$TARGET_IP:$USR_LIB
 
 echo "Installation succesful."

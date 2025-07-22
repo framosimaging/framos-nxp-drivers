@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 
 # define module name & interface version
-set (module imx678)
+set (module imx662)
 
 # define interface version
 set (${module}_INTERFACE_CURRENT  1)
@@ -9,7 +9,7 @@ set (${module}_INTERFACE_REVISION 0)
 set (${module}_INTERFACE_AGE      0)
 
 # we want to compile all .c files as default
-file(GLOB libsources source/IMX678.c )
+file(GLOB libsources source/IMX662.c )
 
 # set public headers, these get installed
 file(GLOB pub_headers include/*.h)
@@ -18,6 +18,7 @@ file(GLOB pub_headers include/*.h)
 include_directories(
     include
     include_priv
+    ${UNITS_TOP_DIRECTORY}
     ${LIB_ROOT}/${CMAKE_BUILD_TYPE}/include
     )
 
@@ -37,6 +38,11 @@ SET_TARGET_PROPERTIES(${module}_shared PROPERTIES LINK_FLAGS      -shared)
 SET_TARGET_PROPERTIES(${module}_shared PROPERTIES SOVERSION       ${${module}_INTERFACE_CURRENT})
 SET_TARGET_PROPERTIES(${module}_shared PROPERTIES VERSION         ${${module}_INTERFACE_CURRENT}.${${module}_INTERFACE_REVISION}.${${module}_INTERFACE_AGE})
 SET_TARGET_PROPERTIES(${module}_shared PROPERTIES FRAMEWORK       TRUE PUBLIC_HEADER "${pub_headers}")
+
+if(${GENERATE_PARTITION_BUILD} STREQUAL 0)
+    # the first target of units partition build, which depends on the units header file copy
+    add_dependencies(${module}_shared copy_units_headers)
+endif(${GENERATE_PARTITION_BUILD} STREQUAL 0)
 
 # add convenience target: put sensor driver into the 'bin' output dir as well
 if ( NOT ANDROID )
@@ -66,12 +72,9 @@ target_link_libraries(${module}_shared
                       isi_shared
                       )
 else (GENERATE_PARTITION_BUILD)
-target_link_libraries(${module}_shared
-                      ${android_partial_platform_libs}
-                      ${android_partial_base_libs}
-                      ${android_partial_drv_libs}
-                      isi_shared
-                      )
+foreach(lib IN LISTS android_partial_base_libs android_partial_platform_libs android_partial_drv_libs)
+    target_link_libraries(${module}_shared "${lib}.so")
+endforeach()
 add_library(PrebuiltLibs SHARED IMPORTED)
 set_target_properties(PrebuiltLibs PROPERTIES IMPORTED_LOCATION ${LIB_ROOT}/${CMAKE_BUILD_TYPE}/lib/libhal.so)
 set_target_properties(PrebuiltLibs PROPERTIES IMPORTED_LOCATION ${LIB_ROOT}/${CMAKE_BUILD_TYPE}/lib/libbufferpool.so)

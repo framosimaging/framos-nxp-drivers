@@ -334,14 +334,9 @@ struct mipi_csis_gate_clk_ops {
 	int (*gclk_disable)(struct csi_state *state);
 };
 
-struct mipi_csis_phy_ops {
-	void (*phy_reset)(struct csi_state *state);
-};
-
 struct mipi_csis_pdata {
 	struct mipi_csis_rst_ops *rst_ops;
 	struct mipi_csis_gate_clk_ops *gclk_ops;
-	struct mipi_csis_phy_ops *phy_ops;
 	bool use_mix_gpr;
 };
 
@@ -940,16 +935,6 @@ static int disp_mix_clks_enable(struct csi_state *state, bool enable)
 	return ret;
 }
 
-static void mipi_csis_phy_reset(struct csi_state *state)
-{
-	struct mipi_csis_pdata const *pdata = state->pdata;
-
-	if (!pdata->phy_ops || !pdata->phy_ops->phy_reset)
-		return;
-
-	pdata->phy_ops->phy_reset(state);
-}
-
 static void disp_mix_gasket_config(struct csi_state *state)
 {
 	struct regmap *gasket = state->gasket;
@@ -1232,8 +1217,9 @@ static int mipi_csis_s_rx_buffer(struct v4l2_subdev *mipi_sd, void *buf,
 	return 0;
 }
 
-static int mipi_csis_s_frame_interval(struct v4l2_subdev *mipi_sd,
-				struct v4l2_subdev_frame_interval *interval)
+static int mipi_csis_set_frame_interval(struct v4l2_subdev *mipi_sd,
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_frame_interval *interval)
 {
 	struct csi_state *state = mipi_sd_to_csi_state(mipi_sd);
 	struct v4l2_subdev *sen_sd;
@@ -1245,11 +1231,12 @@ static int mipi_csis_s_frame_interval(struct v4l2_subdev *mipi_sd,
 		return -EINVAL;
 	}
 
-	return v4l2_subdev_call(sen_sd, video, s_frame_interval, interval);
+	return v4l2_subdev_call(sen_sd, pad, set_frame_interval, sd_state, interval);
 }
 
-static int mipi_csis_g_frame_interval(struct v4l2_subdev *mipi_sd,
-				struct v4l2_subdev_frame_interval *interval)
+static int mipi_csis_get_frame_interval(struct v4l2_subdev *mipi_sd,
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_frame_interval *interval)
 {
 	struct csi_state *state = mipi_sd_to_csi_state(mipi_sd);
 	struct v4l2_subdev *sen_sd;
@@ -1261,7 +1248,7 @@ static int mipi_csis_g_frame_interval(struct v4l2_subdev *mipi_sd,
 		return -EINVAL;
 	}
 
-	return v4l2_subdev_call(sen_sd, video, g_frame_interval, interval);
+	return v4l2_subdev_call(sen_sd, pad, get_frame_interval, sd_state, interval);
 }
 
 static int mipi_csis_enum_framesizes(struct v4l2_subdev *mipi_sd,
@@ -1385,7 +1372,7 @@ static int csis_ioc_qcap(struct v4l2_subdev *dev, void *args)
 {
 	struct csi_state *state = mipi_sd_to_csi_state(dev);
 	struct v4l2_capability *cap = (struct v4l2_capability *)args;
-	strlcpy((char *)cap->driver, "csi_sam_subdev", sizeof(cap->driver));
+	strscpy((char *)cap->driver, "csi_sam_subdev", sizeof(cap->driver));
 	cap->bus_info[0] = state->index;
 	return 0;
 }
@@ -1462,9 +1449,6 @@ static struct v4l2_subdev_core_ops mipi_csis_core_ops = {
 static struct v4l2_subdev_video_ops mipi_csis_video_ops = {
 	.s_rx_buffer = mipi_csis_s_rx_buffer,
 	.s_stream = mipi_csis_s_stream,
-
-	.g_frame_interval = mipi_csis_g_frame_interval,
-	.s_frame_interval = mipi_csis_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops mipi_csis_pad_ops = {
@@ -1472,6 +1456,8 @@ static const struct v4l2_subdev_pad_ops mipi_csis_pad_ops = {
 	.enum_frame_interval   = mipi_csis_enum_frameintervals,
 	.get_fmt               = mipi_csis_get_fmt,
 	.set_fmt               = mipi_csis_set_fmt,
+	.get_frame_interval    = mipi_csis_get_frame_interval,
+	.set_frame_interval    = mipi_csis_set_frame_interval,
 };
 
 static struct v4l2_subdev_ops mipi_csis_subdev_ops = {
@@ -1580,133 +1566,6 @@ static int mipi_csis_subdev_init(struct v4l2_subdev *mipi_sd,
 
 	return ret;
 }
-
-/*
- * IMX8MN platform data
- */
-static int mipi_csis_imx8mn_parse_resets(struct csi_state *state)
-{
-	int ret;
-	struct device *dev = state->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *parent, *child;
-	struct of_phandle_args args;
-	struct reset_control *rstc;
-	const char *compat;
-	uint32_t len, rstc_num = 0;
-
-	ret = of_parse_phandle_with_args(np, "resets", "#reset-cells",
-					 0, &args);
-	if (ret)
-		return ret == -ENOENT ? 0 : ret;
-
-	parent = args.np;
-	for_each_child_of_node(parent, child) {
-		compat = of_get_property(child, "compatible", NULL);
-		if (!compat)
-			continue;
-
-		rstc = of_reset_control_array_get(child, false, false, true);
-		if (IS_ERR(rstc))
-			continue;
-
-		len = strlen(compat);
-		if (!of_compat_cmp("csi,soft-resetn", compat, len)) {
-			state->soft_resetn = rstc;
-			rstc_num++;
-		} else if (!of_compat_cmp("csi,clk-enable", compat, len)) {
-			state->clk_enable = rstc;
-			rstc_num++;
-		} else if (!of_compat_cmp("csi,mipi-reset", compat, len)) {
-			state->mipi_reset = rstc;
-			rstc_num++;
-		} else {
-			dev_warn(dev, "invalid csis reset node: %s\n", compat);
-		}
-	}
-
-	if (!rstc_num) {
-		dev_err(dev, "no invalid reset control exists\n");
-		return -EINVAL;
-	}
-	of_node_put(parent);
-
-	return 0;
-}
-
-static int mipi_csis_imx8mn_resets_assert(struct csi_state *state)
-{
-	if (!state->soft_resetn)
-		return 0;
-
-	return reset_control_assert(state->soft_resetn);
-}
-
-static int mipi_csis_imx8mn_resets_deassert(struct csi_state *state)
-{
-	if (!state->soft_resetn)
-		return 0;
-
-	return reset_control_deassert(state->soft_resetn);
-}
-
-static struct mipi_csis_rst_ops imx8mn_rst_ops = {
-	.parse  = mipi_csis_imx8mn_parse_resets,
-	.assert = mipi_csis_imx8mn_resets_assert,
-	.deassert = mipi_csis_imx8mn_resets_deassert,
-};
-
-static int mipi_csis_imx8mn_gclk_get(struct csi_state *state)
-{
-	if (state->clk_enable)
-		return 0;
-
-	return mipi_csis_imx8mn_parse_resets(state);
-}
-
-static int mipi_csis_imx8mn_gclk_enable(struct csi_state *state)
-{
-	if (!state->clk_enable)
-		return 0;
-
-	return reset_control_assert(state->clk_enable);
-}
-
-static int mipi_csis_imx8mn_gclk_disable(struct csi_state *state)
-{
-	if (!state->clk_enable)
-		return 0;
-
-	return reset_control_deassert(state->clk_enable);
-}
-
-static struct mipi_csis_gate_clk_ops imx8mn_gclk_ops = {
-	.gclk_get = mipi_csis_imx8mn_gclk_get,
-	.gclk_enable  = mipi_csis_imx8mn_gclk_enable,
-	.gclk_disable = mipi_csis_imx8mn_gclk_disable,
-};
-
-static void mipi_csis_imx8mn_phy_reset(struct csi_state *state)
-{
-	struct reset_control *reset = state->mipi_reset;
-
-	reset_control_assert(reset);
-	usleep_range(10, 20);
-
-	reset_control_deassert(reset);
-	usleep_range(10, 20);
-}
-
-static struct mipi_csis_phy_ops imx8mn_phy_ops = {
-	.phy_reset = mipi_csis_imx8mn_phy_reset,
-};
-
-static struct mipi_csis_pdata mipi_csis_imx8mn_pdata = {
-	.rst_ops  = &imx8mn_rst_ops,
-	.gclk_ops = &imx8mn_gclk_ops,
-	.phy_ops  = &imx8mn_phy_ops,
-	.use_mix_gpr = false,
-};
 
 /*
  * IMX8MP platform data
@@ -1864,12 +1723,18 @@ static void mipi_csis_imx8mp_phy_reset(struct csi_state *state)
 {
 	int ret = 0;
 	struct v4l2_subdev *sen_sd;
+	struct reset_control *reset = state->mipi_reset;
 
 	struct v4l2_subdev_mbus_code_enum code = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
 
-	mipi_csis_imx8mn_phy_reset(state);
+	reset_control_assert(reset);
+	usleep_range(10, 20);
+
+	reset_control_deassert(reset);
+	usleep_range(10, 20);
+
 	sen_sd = csis_get_remote_subdev(state, __func__);
 	if (!sen_sd)
 		goto csi_phy_initial_cfg;
@@ -1924,14 +1789,9 @@ write_regmap:
 	return;
 }
 
-static struct mipi_csis_phy_ops imx8mp_phy_ops = {
-	.phy_reset = mipi_csis_imx8mp_phy_reset,
-};
-
 static struct mipi_csis_pdata mipi_csis_imx8mp_pdata = {
 	.rst_ops  = &imx8mp_rst_ops,
 	.gclk_ops = &imx8mp_gclk_ops,
-	.phy_ops  = &imx8mp_phy_ops,
 	.use_mix_gpr = true,
 };
 
@@ -2022,7 +1882,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 
 	disp_mix_clks_enable(state, true);
 	disp_mix_sft_rstn(state, false);
-	mipi_csis_phy_reset(state);
+	mipi_csis_imx8mp_phy_reset(state);
 
 	disp_mix_clks_enable(state, false);
 	mipi_csis_clk_disable(state);
@@ -2113,19 +1973,17 @@ static int mipi_csis_runtime_resume(struct device *dev)
 
 	disp_mix_clks_enable(state, true);
 	disp_mix_sft_rstn(state, false);
-	mipi_csis_phy_reset(state);
+	mipi_csis_imx8mp_phy_reset(state);
 
 	return 0;
 }
 
-static int mipi_csis_remove(struct platform_device *pdev)
+static void mipi_csis_remove(struct platform_device *pdev)
 {
 	struct csi_state *state = platform_get_drvdata(pdev);
 
 	media_entity_cleanup(&state->sd.entity);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops mipi_csis_pm_ops = {
@@ -2134,9 +1992,6 @@ static const struct dev_pm_ops mipi_csis_pm_ops = {
 };
 
 static const struct of_device_id mipi_csis_of_match[] = {
-	{	.compatible = "fsl,imx8mn-mipi-csi",
-		.data = (void *)&mipi_csis_imx8mn_pdata,
-	},
 	{	.compatible = "fsl,imx8mp-mipi-csi",
 		.data = (void *)&mipi_csis_imx8mp_pdata,
 	},
