@@ -96,6 +96,20 @@ write_default_mode_files () {
 	echo "[mode.3]" >> IMX678_MODES.txt
 	echo "xml = \"IMX678_Basic_HDR_3856x2180.xml\"" >> IMX678_MODES.txt
 	echo "dwe = \"dewarp_config/sensor_dwe_IMX678_Basic_3840x2160.json\"" >> IMX678_MODES.txt
+	# IMX838 modes file
+	echo -n "" > IMX838_MODES.txt
+	echo "[mode.0]" >> IMX838_MODES.txt
+	echo "xml = \"IMX838_Basic_3840x2160.xml\"" >> IMX838_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX838_Basic_3840x2160.json\"" >> IMX838_MODES.txt
+	echo "[mode.1]" >> IMX838_MODES.txt
+	echo "xml = \"IMX838_Basic_1920x1080.xml\"" >> IMX838_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX838_Basic_1920x1080.json\"" >> IMX838_MODES.txt
+	echo "[mode.2]" >> IMX838_MODES.txt
+	echo "xml = \"IMX838_Basic_HDR_3856x2180.xml\"" >> IMX838_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX838_Basic_3840x2160.json\"" >> IMX838_MODES.txt
+	echo "[mode.3]" >> IMX838_MODES.txt
+	echo "xml = \"IMX838_Basic_HDR_3856x2180.xml\"" >> IMX838_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_IMX838_Basic_3840x2160.json\"" >> IMX838_MODES.txt
 	# IMX900 modes file
 	echo -n "" > IMX900_MODES.txt
 	echo "[mode.0]" >> IMX900_MODES.txt
@@ -281,6 +295,27 @@ case "$ISP_CONFIG" in
 			CAM_NAME="imx678"
 			DRV_FILE="imx678.drv"
 			MODE_FILE="IMX678_MODES.txt"
+			MODE="1"
+			write_sensor_cfg_file "Sensor0_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
+			write_sensor_cfg_file "Sensor1_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
+			;;
+		imx838_4k )
+			MODULES_TO_REMOVE=("max96792" "max96793" "imx838" "${MODULES[@]}")
+			MODULES=("max96792" "max96793" "imx838" "${MODULES[@]}")
+			RUN_OPTION="CAMERA0"
+			CAM_NAME="imx838"
+			DRV_FILE="imx838.drv"
+			MODE_FILE="IMX838_MODES.txt"
+			MODE="0"
+			write_sensor_cfg_file "Sensor0_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
+			;;
+		dual_imx838_4k )
+			MODULES_TO_REMOVE=("max96792" "max96793" "imx838" "${MODULES[@]}")
+			MODULES=("max96792" "max96793" "imx838" "${MODULES[@]}")
+			RUN_OPTION="DUAL_CAMERA"
+			CAM_NAME="imx838"
+			DRV_FILE="imx838.drv"
+			MODE_FILE="IMX838_MODES.txt"
 			MODE="1"
 			write_sensor_cfg_file "Sensor0_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
 			write_sensor_cfg_file "Sensor1_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE

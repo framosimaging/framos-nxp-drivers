@@ -53,6 +53,11 @@
 #define IMX900_MAX_GAIN_DEC 480
 #define IMX900_MAX_GAIN_DB  48
 
+#define IMX900_GAIN_RATIO  (IMX900_MAX_GAIN_DB * 10 / IMX900_MAX_GAIN_DEC)
+#define IMX900_HIGH_GAIN_REG_MIN 30
+#define IMX900_HIGH_GAIN_MIN (IMX900_HIGH_GAIN_REG_MIN * IMX900_GAIN_RATIO) 
+
+
 #define IMX900_MAX_BLACK_LEVEL			4095
 #define IMX900_DEFAULT_BLACK_LEVEL_8BPP		15
 #define IMX900_DEFAULT_BLACK_LEVEL_10BPP	60
@@ -79,7 +84,9 @@
 #define V4L2_CID_DATA_RATE		(V4L2_CID_USER_IMX_BASE + 1)
 //#define V4L2_CID_SYNC_MODE		(V4L2_CID_USER_IMX_BASE + 2)
 #define V4L2_CID_FRAME_RATE		(V4L2_CID_USER_IMX_BASE + 2)
-#define V4L2_CID_SHUTTER_MODE	(V4L2_CID_USER_IMX_BASE + 3)
+#define V4L2_CID_SHUTTER_MODE		(V4L2_CID_USER_IMX_BASE + 3)
+#define V4L2_CID_CONV_GAIN		(V4L2_CID_USER_IMX_BASE + 4)
+#define V4L2_NUM_CTRLS			8
 
 static const struct of_device_id imx900_of_match[] = {
 	{ .compatible = "framos,imx900" },
@@ -212,6 +219,19 @@ static struct v4l2_ctrl_config imx900_ctrl_shutter_mode[] = {
 	},
 };
 
+static struct v4l2_ctrl_config imx900_ctrl_conv_gain[] = {
+	{
+		.ops = &imx900_ctrl_ops,
+		.id = V4L2_CID_CONV_GAIN,
+		.name = "Conversion gain",
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.min = 0,
+		.max = 1,
+		.def = 0,
+		.step = 1,
+	},
+};
+
 struct imx900_ctrls {
 	struct v4l2_ctrl_handler handler;
 	struct v4l2_ctrl *exposure;
@@ -222,6 +242,7 @@ struct imx900_ctrls {
 	struct v4l2_ctrl *data_rate;
 	//struct v4l2_ctrl *sync_mode;
 	struct v4l2_ctrl *shutter_mode;
+	struct v4l2_ctrl *conv_gain;
 };
 
 struct imx900 {
@@ -1752,8 +1773,18 @@ static int imx900_set_gain(struct imx900 *sensor, u32 gain, unsigned int which_c
 	if (which_control == 0) {
 		gain_reg = imx900_get_gain_reg(gain);
 	} else { // from V4L2 control
-		gain_reg = gain * IMX900_MAX_GAIN_DEC /
-				(IMX900_MAX_GAIN_DB * 10);
+		gain_reg = gain;
+	}
+
+	/*
+	 Workaround to set min value for high conversion gain If you plan to use high conversion 
+	 gain the correct way is to change value for min_again in sensor mode
+	*/
+	if (sensor->ctrls.conv_gain->val == 1) {
+		if (gain_reg < IMX900_HIGH_GAIN_REG_MIN) {
+			pr_warn("%s: gain value too small for high gain setting value to %d \n", __func__, IMX900_HIGH_GAIN_REG_MIN);
+			gain_reg = IMX900_HIGH_GAIN_REG_MIN;
+		}
 	}
 
 	pr_debug("%s: gain register: %u\n", __func__, gain_reg);
@@ -1761,6 +1792,19 @@ static int imx900_set_gain(struct imx900 *sensor, u32 gain, unsigned int which_c
 	ret |= imx900_write_reg(sensor, GAIN_HIGH, (gain_reg>>8) & 0xff);
 	ret |= imx900_write_reg(sensor, GAIN_LOW, gain_reg & 0xff);
 	ret |= imx900_write_reg(sensor, REGHOLD, 0);
+
+	return ret;
+}
+
+static int imx900_get_low_gain(struct imx900 *sensor, u32 *reg_gain)
+{
+	int ret = 0;
+	u8 val = 0;
+
+	ret = imx900_read_reg(sensor, GAIN_HIGH, &val);
+	*reg_gain = (*reg_gain << 8) + val;
+	ret |= imx900_read_reg(sensor, GAIN_LOW, &val);
+	*reg_gain = (*reg_gain << 8) + val;
 
 	return ret;
 }
@@ -1953,6 +1997,53 @@ static int imx900_set_ratio(struct imx900 *sensor, void *pratio)
 	return 0;
 }
 
+static int imx900_set_conv_gain(struct imx900 *sensor, u32 val)
+{
+	int ret = 0;
+	u32 curr_gain;
+	pr_info("enter %s conv gain: %u\n",  __func__, val);
+
+	ret = imx900_write_reg(sensor, FDG_SEL, val);
+	if (ret) {
+		pr_err("%s: Error setting conversion gain\n", __func__);
+		return ret;
+	}
+	if (val == 1) {
+		ret = imx900_get_low_gain(sensor, &curr_gain);
+		curr_gain = max(IMX900_HIGH_GAIN_MIN, curr_gain);
+		ret |= imx900_set_gain(sensor, curr_gain, 1);
+
+		sensor->cur_mode.ae_info.min_again = 
+				gain_reg2times[IMX900_HIGH_GAIN_REG_MIN];
+		if (ret) {
+			pr_err("%s: Error changing gain value\n", __func__);
+			return ret;
+		}
+		sensor->ctrls.gain->val = (s32) curr_gain;
+
+		// change minimum according to datasheet
+		ret = __v4l2_ctrl_modify_range(sensor->ctrls.gain,
+					IMX900_HIGH_GAIN_MIN,
+					sensor->ctrls.gain->maximum,
+					sensor->ctrls.gain->step,
+					IMX900_HIGH_GAIN_MIN);
+	} else {
+		ret = __v4l2_ctrl_modify_range(sensor->ctrls.gain,
+					0,
+					sensor->ctrls.gain->maximum,
+					sensor->ctrls.gain->step,
+					0);
+		sensor->cur_mode.ae_info.min_again = gain_reg2times[0];
+	}
+
+	if (ret) {
+		pr_err("%s: Modifying gain control range error\n", __func__);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int imx900_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
@@ -1990,6 +2081,9 @@ static int imx900_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_SHUTTER_MODE:
 		ret = imx900_set_shutter_mode(sensor, ctrl->val);
+		break;
+	case V4L2_CID_CONV_GAIN:
+		ret = imx900_set_conv_gain(sensor, ctrl->val);
 		break;
 	default:
 		ret = -EINVAL;
@@ -3481,7 +3575,7 @@ static int imx900_probe(struct i2c_client *client)
 		sizeof(struct vvcam_mode_info_s));
 
 	/* initialize controls */
-	retval = v4l2_ctrl_handler_init(&sensor->ctrls.handler, 7);
+	retval = v4l2_ctrl_handler_init(&sensor->ctrls.handler, V4L2_NUM_CTRLS);
 	if (retval < 0) {
 		dev_err(&client->dev,
 			"%s : ctrl handler init Failed\n", __func__);
@@ -3509,6 +3603,8 @@ static int imx900_probe(struct i2c_client *client)
 	//sensor->ctrls.sync_mode = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx900_ctrl_sync_mode, NULL);
 	sensor->ctrls.framerate = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx900_ctrl_framerate, NULL);
 	sensor->ctrls.shutter_mode = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx900_ctrl_shutter_mode, NULL);
+	sensor->ctrls.conv_gain = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx900_ctrl_conv_gain, NULL);
+
 	sensor->ctrls.test_pattern = v4l2_ctrl_new_std_menu_items(&sensor->ctrls.handler, &imx900_ctrl_ops, V4L2_CID_TEST_PATTERN,
 					ARRAY_SIZE(test_pattern_menu) - 1, 0, 0, test_pattern_menu);
 

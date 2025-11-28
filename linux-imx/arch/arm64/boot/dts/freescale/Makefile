@@ -185,6 +185,8 @@ dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk.dtb imx8mp-evk-rm67191.dtb imx8mp-evk-it626
 			  imx8mp-evk-imx676-gmsl.dtb imx8mp-evk-imx676-dual-gmsl.dtb\
 			  imx8mp-evk-imx678.dtb imx8mp-evk-imx678-dual.dtb \
 			  imx8mp-evk-imx678-gmsl.dtb imx8mp-evk-imx678-dual-gmsl.dtb\
+			  imx8mp-evk-imx838.dtb imx8mp-evk-imx838-dual.dtb\
+			  imx8mp-evk-imx838-gmsl.dtb imx8mp-evk-imx838-dual-gmsl.dtb\
 			  imx8mp-evk-imx900.dtb imx8mp-evk-imx900-dual.dtb\
 			  imx8mp-evk-imx900-gmsl.dtb imx8mp-evk-imx900-dual-gmsl.dtb\
 			  imx8mp-evk-iqaudio-dacplus.dtb imx8mp-evk-iqaudio-dacpro.dtb imx8mp-evk-hifiberry-dacplus.dtb \

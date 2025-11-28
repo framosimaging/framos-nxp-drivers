@@ -10,6 +10,7 @@ RUNTIME_DIR="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 NR_DEVICE_TREE_IMX662=$(grep imx662 /sys/firmware/devicetree/base/soc@0/*/i2c@*/*/*/*/compatible -l | wc -l 2> /dev/null)
 NR_DEVICE_TREE_IMX676=$(grep imx676 /sys/firmware/devicetree/base/soc@0/*/i2c@*/*/*/*/compatible -l | wc -l 2> /dev/null)
 NR_DEVICE_TREE_IMX678=$(grep imx678 /sys/firmware/devicetree/base/soc@0/*/i2c@*/*/*/*/compatible -l | wc -l 2> /dev/null)
+NR_DEVICE_TREE_IMX838=$(grep imx838 /sys/firmware/devicetree/base/soc@0/*/i2c@*/*/*/*/compatible -l | wc -l 2> /dev/null)
 NR_DEVICE_TREE_IMX900=$(grep imx900 /sys/firmware/devicetree/base/soc@0/*/i2c@*/*/*/*/compatible -l | wc -l 2> /dev/null)
 
 # check for imx662 devices
@@ -62,6 +63,23 @@ elif [ $NR_DEVICE_TREE_IMX678 -eq 1 ]; then
 	cd $RUNTIME_DIR
 	
 	exec ./run.sh -c imx678_4k -lm
+
+# check for imx838 devices
+elif [ $NR_DEVICE_TREE_IMX838 -eq 2 ]; then
+
+	echo "Starting isp_media_server for Dual IMX838"
+
+	cd $RUNTIME_DIR
+	
+	exec ./run.sh -c dual_imx838_4k -lm
+	
+elif [ $NR_DEVICE_TREE_IMX838 -eq 1 ]; then
+
+	echo "Starting isp_media_server for IMX838"
+
+	cd $RUNTIME_DIR
+	
+	exec ./run.sh -c imx838_4k -lm
 	
 # check for imx900 devices
 elif [ $NR_DEVICE_TREE_IMX900 -eq 2 ]; then

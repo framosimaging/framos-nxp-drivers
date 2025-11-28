@@ -3,6 +3,7 @@ all:
 	@cd imx662;  make || exit $$?;
 	@cd imx676;  make || exit $$?;
 	@cd imx678;  make || exit $$?;
+	@cd imx838;  make || exit $$?;
 	@cd imx900;  make || exit $$?;
 
 clean:
@@ -10,6 +11,7 @@ clean:
 	@cd imx662;   make clean;
 	@cd imx676;   make clean;
 	@cd imx678;   make clean;
+	@cd imx838;   make clean;
 	@cd imx900;   make clean;
 
 modules_install:
@@ -17,5 +19,6 @@ modules_install:
 	@cd imx662;   make modules_install;
 	@cd imx676;   make modules_install;
 	@cd imx678;   make modules_install;
+	@cd imx838;   make modules_install;
 	@cd imx900;   make modules_install;
 

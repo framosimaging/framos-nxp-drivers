@@ -47,6 +47,9 @@
 
 #define IMX676_MAX_GAIN_DEC 240
 #define IMX676_MAX_GAIN_DB  72
+#define IMX676_GAIN_RATIO  (IMX676_MAX_GAIN_DB * 10 / IMX676_MAX_GAIN_DEC)
+#define IMX676_HIGH_GAIN_REG_MIN 34
+#define IMX676_HIGH_GAIN_MIN (IMX676_HIGH_GAIN_REG_MIN * IMX676_GAIN_RATIO) 
 
 #define IMX676_MAX_BLACK_LEVEL_10BPP		1023
 #define IMX676_MAX_BLACK_LEVEL_12BPP		4095
@@ -76,8 +79,8 @@
 #define IMX676_MAX_BOUNDS_WIDTH 3552
 #define IMX676_MAX_BOUNDS_HEIGHT 3940
 
-#define IMX676_BRL       3092
-#define IMX676_LINE_TIME 8458 // in ns
+#define IMX676_BRL           3092
+#define IMX676_LINE_TIME     8458 // in ns
 
 #define V4L2_CID_DATA_RATE		(V4L2_CID_USER_IMX_BASE + 1)
 #define V4L2_CID_SYNC_MODE		(V4L2_CID_USER_IMX_BASE + 2)
@@ -85,7 +88,9 @@
 #define V4L2_CID_VS_EXP			(V4L2_CID_USER_IMX_BASE + 4)
 #define V4L2_CID_VS_GAIN		(V4L2_CID_USER_IMX_BASE + 5)
 #define V4L2_CID_EXP_GAIN		(V4L2_CID_USER_IMX_BASE + 6)
-#define V4L2_NUM_CTRLS			10
+#define V4L2_CID_CONV_GAIN		(V4L2_CID_USER_IMX_BASE + 7)
+#define V4L2_CID_CONV_VS_GAIN		(V4L2_CID_USER_IMX_BASE + 8)
+#define V4L2_NUM_CTRLS			12
 
 static const struct of_device_id imx676_of_match[] = {
 	{ .compatible = "framos,imx676" },
@@ -244,6 +249,32 @@ static struct v4l2_ctrl_config imx676_ctrl_exp_gain[] = {
 	},
 };
 
+static struct v4l2_ctrl_config imx676_ctrl_conv_gain[] = {
+	{
+		.ops = &imx676_ctrl_ops,
+		.id = V4L2_CID_CONV_GAIN,
+		.name = "Conversion gain",
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.min = 0,
+		.max = 1,
+		.def = 0,
+		.step = 1,
+	},
+};
+
+static struct v4l2_ctrl_config imx676_ctrl_conv_vs_gain[] = {
+	{
+		.ops = &imx676_ctrl_ops,
+		.id = V4L2_CID_CONV_VS_GAIN,
+		.name = "VS Conversion gain",
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.min = 0,
+		.max = 1,
+		.def = 0,
+		.step = 1,
+	},
+};
+
 struct imx676_ctrls {
 	struct v4l2_ctrl_handler handler;
 	struct v4l2_ctrl *exposure;
@@ -256,6 +287,8 @@ struct imx676_ctrls {
 	struct v4l2_ctrl *vs_exp;
 	struct v4l2_ctrl *vs_gain;
 	struct v4l2_ctrl *exp_gain;
+	struct v4l2_ctrl *conv_gain;
+	struct v4l2_ctrl *conv_vs_gain;
 };
 
 struct imx676 {
@@ -1336,8 +1369,7 @@ static int imx676_set_gain(struct imx676 *sensor, u32 gain, unsigned int which_c
 	if (which_control == 0) { /* from isp */
 		gain_reg = imx676_get_gain_reg(gain);
 	} else { /* from v4l2 control */
-		gain_reg = gain * IMX676_MAX_GAIN_DEC /
-				 (IMX676_MAX_GAIN_DB * 10);
+		gain_reg = gain / IMX676_GAIN_RATIO;
 	}
 
 	if (sensor->cur_mode.index == IMX676_CLEAR_INDEX) {
@@ -1347,6 +1379,16 @@ static int imx676_set_gain(struct imx676 *sensor, u32 gain, unsigned int which_c
 		}
 	}
 
+	/*
+	 Workaround to set min value for high conversion gain If you plan to use high conversion 
+	 gain the correct way is to change value for min_again in sensor mode
+	*/
+	if (sensor->ctrls.conv_gain->val == 1) {
+		if (gain_reg < IMX676_HIGH_GAIN_REG_MIN) {
+			pr_warn("%s: gain value too small for high gain setting value to %d \n", __func__, IMX676_HIGH_GAIN_REG_MIN);
+			gain_reg = IMX676_HIGH_GAIN_REG_MIN;
+		}
+	}
 	pr_debug("enter %s gain register: %u\n", __func__, gain_reg);
 	ret = imx676_write_reg(sensor, REGHOLD, 1);
 	ret |= imx676_write_reg(sensor, GAIN_0_HIGH, (gain_reg>>8) & 0xff);
@@ -1364,6 +1406,19 @@ static int imx676_get_low_gain(struct imx676 *sensor, u32 *reg_gain)
 	ret = imx676_read_reg(sensor, GAIN_0_HIGH, &val);
 	*reg_gain = (*reg_gain << 8) + val;
 	ret |= imx676_read_reg(sensor, GAIN_0_LOW, &val);
+	*reg_gain = (*reg_gain << 8) + val;
+
+	return ret;
+}
+
+static int imx676_get_high_gain(struct imx676 *sensor, u32 *reg_gain)
+{
+	int ret = 0;
+	u8 val = 0;
+
+	ret = imx676_read_reg(sensor, GAIN_1_HIGH, &val);
+	*reg_gain = (*reg_gain << 8) + val;
+	ret |= imx676_read_reg(sensor, GAIN_1_LOW, &val);
 	*reg_gain = (*reg_gain << 8) + val;
 
 	return ret;
@@ -1388,6 +1443,17 @@ static int imx676_set_vs_gain(struct imx676 *sensor, u32 gain, u8 which_control)
 	if (gain_reg > max_vs_gain) {
 		gain_reg = max_vs_gain;
 		pr_info("%s: gain register too large, setting gain register to: %u\n", __func__, gain_reg);
+	}
+
+	/*
+	 Workaround to set min value for high conversion gain If you plan to use high conversion 
+	 gain the correct way is to change value for min_short_again in sensor mode
+	*/
+	if (sensor->ctrls.conv_vs_gain->val == 1) {
+		if (gain_reg < IMX676_HIGH_GAIN_REG_MIN) {
+			pr_warn("%s: gain value too small for high gain setting value to %d \n", __func__, IMX676_HIGH_GAIN_REG_MIN);
+			gain_reg = IMX676_HIGH_GAIN_REG_MIN;
+		}
 	}
 
 	pr_debug("%s: vs gain register: %u\n", __func__, gain_reg);
@@ -1459,6 +1525,112 @@ static int imx676_set_black_level(struct imx676 *sensor, s64 val, u32 which_cont
 	ret |= imx676_write_reg(sensor, REGHOLD, 0);
 	if (ret) {
 		pr_err("%s: BLACK LEVEL control error\n", __func__);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int imx676_set_conv_gain(struct imx676 *sensor, u32 val)
+{
+	int ret = 0;
+	u32 curr_gain;
+	pr_info("enter %s conv gain: %u\n",  __func__, val);
+
+	if (sensor->cur_mode.index == IMX676_CLEAR_INDEX) {
+		pr_warn("%s: Default value for conversion gain should not be "
+			 "changed in Clear HDR stream\n", __func__);
+		return 0;
+	}
+
+	ret = imx676_write_reg(sensor, FDG_SEL0, val);
+	if (ret) {
+		pr_err("%s: Error setting conversion gain\n", __func__);
+		return ret;
+	}
+	if (val == 1) {
+		ret = imx676_get_low_gain(sensor, &curr_gain);
+		curr_gain = curr_gain * IMX676_GAIN_RATIO; 
+		curr_gain = max(IMX676_HIGH_GAIN_MIN, curr_gain);
+		ret |= imx676_set_gain(sensor, curr_gain, 1);
+
+		sensor->cur_mode.ae_info.min_again = 
+				gain_reg2times[IMX676_HIGH_GAIN_REG_MIN];
+		if (ret) {
+			pr_err("%s: Error changing gain value\n", __func__);
+			return ret;
+		}
+		sensor->ctrls.gain->val = (s32) curr_gain;
+
+		// change minimum according to datasheet
+		ret = __v4l2_ctrl_modify_range(sensor->ctrls.gain,
+					IMX676_HIGH_GAIN_MIN,
+					sensor->ctrls.gain->maximum,
+					sensor->ctrls.gain->step,
+					IMX676_HIGH_GAIN_MIN);
+	} else {
+		ret = __v4l2_ctrl_modify_range(sensor->ctrls.gain,
+					0,
+					sensor->ctrls.gain->maximum,
+					sensor->ctrls.gain->step,
+					0);
+		sensor->cur_mode.ae_info.min_again = gain_reg2times[0];
+	}
+
+	if (ret) {
+		pr_err("%s: Modifying gain control range error\n", __func__);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int imx676_set_conv_vs_gain(struct imx676 *sensor, u32 val)
+{
+	int ret = 0;
+	u32 curr_gain;
+	pr_info("enter %s conv gain: %u\n",  __func__, val);
+
+	if (sensor->cur_mode.index != IMX676_DOL_INDEX) {
+		pr_warn("%s: Conversion gain for short frame can only be changed " 
+			"in DOL mode \n", __func__);
+		return 0;
+	}
+
+	ret = imx676_write_reg(sensor, FDG_SEL1, val);
+	if (ret) {
+		pr_err("%s: Error setting conversion gain\n", __func__);
+		return ret;
+	}
+	if (val == 1) {
+		ret = imx676_get_high_gain(sensor, &curr_gain);
+		curr_gain = curr_gain * IMX676_GAIN_RATIO; 
+		curr_gain = max(IMX676_HIGH_GAIN_MIN, curr_gain);
+		ret |= imx676_set_vs_gain(sensor, curr_gain, 1);
+		sensor->cur_mode.ae_info.min_short_again = 
+				gain_reg2times[IMX676_HIGH_GAIN_REG_MIN];
+		if (ret) {
+			pr_warn("%s: Error changing gain value\n", __func__);
+			return ret;
+		}
+		sensor->ctrls.vs_gain->val = (s32) curr_gain;
+
+		ret = __v4l2_ctrl_modify_range(sensor->ctrls.vs_gain,
+					IMX676_HIGH_GAIN_MIN,
+					sensor->ctrls.vs_gain->maximum,
+					sensor->ctrls.vs_gain->step,
+					IMX676_HIGH_GAIN_MIN);
+	} else {
+		ret = __v4l2_ctrl_modify_range(sensor->ctrls.vs_gain,
+					0,
+					sensor->ctrls.vs_gain->maximum,
+					sensor->ctrls.vs_gain->step,
+					0);
+		sensor->cur_mode.ae_info.min_short_again = gain_reg2times[0];
+	}
+
+	if (ret) {
+		pr_err("%s: Modifying gain control range error\n", __func__);
 		return ret;
 	}
 
@@ -1608,6 +1780,12 @@ static int imx676_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_EXP_GAIN:
 		ret = imx676_set_exp_gain(sensor, ctrl->val, 1);
+		break;
+	case V4L2_CID_CONV_GAIN:
+		ret = imx676_set_conv_gain(sensor, ctrl->val);
+		break;
+	case V4L2_CID_CONV_VS_GAIN:
+		ret = imx676_set_conv_vs_gain(sensor, ctrl->val);
 		break;
 	default:
 		ret = -EINVAL;
@@ -2426,7 +2604,7 @@ static int imx676_probe(struct i2c_client *client)
 	sensor->ctrls.exposure = v4l2_ctrl_new_std(&sensor->ctrls.handler, &imx676_ctrl_ops, V4L2_CID_EXPOSURE,
 							3, 30000, 1, 1000);
 	sensor->ctrls.gain = v4l2_ctrl_new_std(&sensor->ctrls.handler, &imx676_ctrl_ops, V4L2_CID_GAIN,
-						0, 240, 3, 0);
+						0, 720, 3, 0);
 	sensor->ctrls.black_level = v4l2_ctrl_new_std(&sensor->ctrls.handler, &imx676_ctrl_ops, V4L2_CID_BLACK_LEVEL,
 							0, 1023, 1, 50);
 	sensor->ctrls.data_rate = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx676_ctrl_data_rate, NULL);
@@ -2435,6 +2613,8 @@ static int imx676_probe(struct i2c_client *client)
 	sensor->ctrls.vs_exp = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx676_ctrl_vs_exp, NULL);
 	sensor->ctrls.vs_gain = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx676_ctrl_vs_gain, NULL);
 	sensor->ctrls.exp_gain = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx676_ctrl_exp_gain, NULL);
+	sensor->ctrls.conv_gain = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx676_ctrl_conv_gain, NULL);
+	sensor->ctrls.conv_vs_gain = v4l2_ctrl_new_custom(&sensor->ctrls.handler, imx676_ctrl_conv_vs_gain, NULL);
 
 	sensor->ctrls.test_pattern = v4l2_ctrl_new_std_menu_items(&sensor->ctrls.handler, &imx676_ctrl_ops, V4L2_CID_TEST_PATTERN,
 					ARRAY_SIZE(test_pattern_menu) - 1, 0, 0, test_pattern_menu);
@@ -2540,7 +2720,6 @@ static struct i2c_driver imx676_i2c_driver = {
 	.remove = imx676_remove,
 	.id_table = imx676_id,
 };
-
 
 module_i2c_driver(imx676_i2c_driver);
 MODULE_DESCRIPTION("IMX676 MIPI Camera Subdev Driver");

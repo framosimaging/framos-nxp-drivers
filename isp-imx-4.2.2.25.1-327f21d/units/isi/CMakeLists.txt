@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 2.6)
 # define module name
 set (module isi)
 
+if (GENERATE_PARTITION_BUILD)
 # we want to compile all .c files as default
 file(GLOB libsources source/*.c)
 
@@ -62,19 +63,43 @@ add_dependencies(copy_shell_libs_${module} ${module}_shared)
 
 endif( DEFINED APPSHELL_TOP_COMPILE)
 
-# create common targets for this module
-include(${UNITS_TOP_DIRECTORY}/targets.cmake)
-
-if (GENERATE_PARTITION_BUILD)
 # add sensor driver modules here
 add_subdirectory( drv/imx662 )
 add_subdirectory( drv/imx676 )
 add_subdirectory( drv/imx678 )
+add_subdirectory( drv/imx838 )
 add_subdirectory( drv/imx900 )
+
 else (GENERATE_PARTITION_BUILD)
+# partition build
+include_directories(
+    include
+    include_priv
+    ${UNITS_TOP_DIRECTORY}
+    ../../vvcam/common
+    ../../vvcam/csi
+    ../../vvcam/soc
+    ${LIB_ROOT}/${CMAKE_BUILD_TYPE}/include
+    )
+
 add_subdirectory( drv/imx662 )
 add_subdirectory( drv/imx676 )
 add_subdirectory( drv/imx678 )
+add_subdirectory( drv/imx838 )
 add_subdirectory( drv/imx900 )
+
+add_custom_target(copy_shell_libs_${module} ALL
+       COMMENT "##Copy isi drv cfg to shell libs"
+       COMMAND ${CMAKE_COMMAND} -E copy ${UNITS_TOP_DIRECTORY}/isi/drv/*/*.cfg  ${LIB_ROOT}/${CMAKE_BUILD_TYPE}/bin/
+       COMMAND ${CMAKE_COMMAND} -E copy ${UNITS_TOP_DIRECTORY}/isi/drv/*.cfg  ${LIB_ROOT}/${CMAKE_BUILD_TYPE}/bin/
+)
+add_dependencies(copy_shell_libs_${module} drv/imx662)
+add_dependencies(copy_shell_libs_${module} drv/imx676)
+add_dependencies(copy_shell_libs_${module} drv/imx678)
+add_dependencies(copy_shell_libs_${module} drv/imx838)
+add_dependencies(copy_shell_libs_${module} drv/imx900)
+
 endif (GENERATE_PARTITION_BUILD)
 
+# create common targets for this module
+include(${UNITS_TOP_DIRECTORY}/targets.cmake)

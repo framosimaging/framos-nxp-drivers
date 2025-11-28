@@ -1,3 +1,9 @@
+Framos_v2.2.0 (2025-11-28)
+=========================
+	- add FSM:GO IMX838
+	- add conversion gain control
+	- fix imx-isp build
+
 Framos_v2.2.0 (2025-07-23)
 =========================
 	- support for kernel 6.12.3
