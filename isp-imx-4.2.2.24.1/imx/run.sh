@@ -113,6 +113,46 @@ write_default_mode_files () {
 	echo "[mode.4]" >> IMX900_MODES.txt
 	echo "xml = \"IMX900_Basic_1008x704.xml\"" >> IMX900_MODES.txt
 	echo "dwe = \"dewarp_config/sensor_dwe_IMX900_Basic_1008x704.json\"" >> IMX900_MODES.txt
+	# VB1943 modes file
+	echo -n "" > VB1943_MODES.txt
+	echo "[mode.0]" >> VB1943_MODES.txt
+	echo "xml = \"VB1943_Basic_2560x1984.xml\"" >> VB1943_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_VB1943_Basic_2560x1984.json\"" >> VB1943_MODES.txt
+	echo "[mode.1]" >> VB1943_MODES.txt
+	echo "xml = \"VB1943_Basic_2064x1552.xml\"" >> VB1943_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_VB1943_Basic_2064x1552.json\"" >> VB1943_MODES.txt
+	echo "[mode.2]" >> VB1943_MODES.txt
+	echo "xml = \"VB1943_Basic_1920x1080.xml\"" >> VB1943_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_VB1943_Basic_1920x1080.json\"" >> VB1943_MODES.txt
+	echo "[mode.3]" >> VB1943_MODES.txt
+	echo "xml = \"VB1943_Basic_2560x1984_12bit.xml\"" >> VB1943_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_VB1943_Basic_2560x1984.json\"" >> VB1943_MODES.txt
+	echo "[mode.4]" >> VB1943_MODES.txt
+	echo "xml = \"VB1943_Basic_2064x1552_12bit.xml\"" >> VB1943_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_VB1943_Basic_2064x1552.json\"" >> VB1943_MODES.txt
+	echo "[mode.5]" >> VB1943_MODES.txt
+	echo "xml = \"VB1943_Basic_1920x1080_12bit.xml\"" >> VB1943_MODES.txt
+	echo "dwe = \"dewarp_config/sensor_dwe_VB1943_Basic_1920x1080.json\"" >> VB1943_MODES.txt
+}
+
+# VB5943 (mono VB1943)
+select_vb5943_xml () {
+	local ent node csi cfg
+	command -v media-ctl > /dev/null || return
+	media-ctl -p 2> /dev/null | awk '
+		/^- entity .*: vb1943 / { ent = 1; next }
+		/^- entity / { ent = 0 }
+		ent && /device node name/ { node = $NF }
+		ent && /-> "mxc-mipi-csi2\.[0-9]"/ { match($0, /csi2\.[0-9]/); print node, substr($0, RSTART + 5, 1) }' |
+	while read node csi; do
+		cfg="Sensor${csi}_Entry.cfg"
+		[ -f "$cfg" ] && grep -q "VB1943_Basic_" "$cfg" || continue
+		if ! v4l2-ctl -d "$node" -L 2> /dev/null | grep -q "^[[:space:]]*1: RGB$"; then
+			# only the xml lines, the dwe lines must keep the VB1943_Basic_ dewarp files
+			sed -i "/^xml = /s/VB1943_Basic_/VB5943_Basic_/" "$cfg"
+			echo "VB1943 on mxc-mipi-csi2.$csi is mono (VB5943), $cfg uses VB5943_Basic_*.xml"
+		fi
+	done
 }
 
 # write the sensonr config file
@@ -306,6 +346,27 @@ case "$ISP_CONFIG" in
 			write_sensor_cfg_file "Sensor0_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
 			write_sensor_cfg_file "Sensor1_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
 			;;
+		vb1943_2k )
+			MODULES_TO_REMOVE=("max96792" "max96793" "vb1943" "${MODULES[@]}")
+			MODULES=("max96792" "max96793" "vb1943" "${MODULES[@]}")
+			RUN_OPTION="CAMERA0"
+			CAM_NAME="vb1943"
+			DRV_FILE="vb1943.drv"
+			MODE_FILE="VB1943_MODES.txt"
+			MODE="0"
+			write_sensor_cfg_file "Sensor0_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
+			;;
+		dual_vb1943_2k )
+			MODULES_TO_REMOVE=("max96792" "max96793" "vb1943" "${MODULES[@]}")
+			MODULES=("max96792" "max96793" "vb1943" "${MODULES[@]}")
+			RUN_OPTION="DUAL_CAMERA"
+			CAM_NAME="vb1943"
+			DRV_FILE="vb1943.drv"
+			MODE_FILE="VB1943_MODES.txt"
+			MODE="2"
+			write_sensor_cfg_file "Sensor0_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
+			write_sensor_cfg_file "Sensor1_Entry.cfg" $CAM_NAME $DRV_FILE $MODE_FILE $MODE
+			;;
 		 *)
 			echo "ISP configuration \"$ISP_CONFIG\" unsupported."
 			echo -e "$USAGE" >&2
@@ -331,6 +392,8 @@ fi
 if [ "$LOCAL_RUN" == "1" ]; then
 	set_libs_path "libmedia_server.so"
 fi
+
+select_vb5943_xml
 
 echo "Starting isp_media_server with configuration file $RUN_OPTION"
 ./isp_media_server $RUN_OPTION

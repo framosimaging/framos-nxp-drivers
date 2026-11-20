@@ -29,6 +29,7 @@ cp vvcam/v4l2/sensor/imx662/imx662.ko modules
 cp vvcam/v4l2/sensor/imx676/imx676.ko modules
 cp vvcam/v4l2/sensor/imx678/imx678.ko modules
 cp vvcam/v4l2/sensor/imx900/imx900.ko modules
+cp vvcam/v4l2/sensor/vb1943/vb1943.ko modules
 cp vvcam/v4l2/sensor/max9679x/max9679*.ko modules
 #cp vvcam/v4l2/csi/samsung/vvcam-csis.ko modules
 cp vvcam/v4l2/isp/vvcam-isp.ko modules

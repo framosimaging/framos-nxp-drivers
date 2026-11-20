@@ -131,6 +131,9 @@ dtb-$(CONFIG_ARCH_MXC) += imx8mp-evk.dtb imx8mp-evk-rm67191.dtb imx8mp-evk-it626
 			  imx8mp-evk-imx678-gmsl.dtb imx8mp-evk-imx678-dual-gmsl.dtb\
 			  imx8mp-evk-imx900.dtb imx8mp-evk-imx900-dual.dtb\
 			  imx8mp-evk-imx900-gmsl.dtb imx8mp-evk-imx900-dual-gmsl.dtb\
+			  imx8mp-evk-vb1943-2lane.dtb imx8mp-evk-vb1943-4lane.dtb\
+			  imx8mp-evk-vb1943-dual-2lane.dtb imx8mp-evk-vb1943-gmsl-4lane.dtb\
+			  imx8mp-evk-vb1943-dual-gmsl-2lane.dtb\
 			  imx8mp-evk-iqaudio-dacplus.dtb imx8mp-evk-iqaudio-dacpro.dtb imx8mp-evk-hifiberry-dacplus.dtb \
 			  imx8mp-evk-hifiberry-dac2.dtb imx8mp-evk-hifiberry-dacplusadc.dtb \
 			  imx8mp-evk-usdhc1-m2.dtb imx8mp-evk-rm67199.dtb \

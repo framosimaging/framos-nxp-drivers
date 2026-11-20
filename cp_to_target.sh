@@ -17,7 +17,7 @@ USR_LIB="/usr"
 
 echo "Copying Image and device trees..."
 scp $NXP_DIR/linux-imx/arch/arm64/boot/Image root@$TARGET_IP:/run/media/boot-mmcblk1p1
-scp $NXP_DIR/linux-imx/arch/arm64/boot/dts/freescale/imx8mp-evk-imx*.dtb root@$TARGET_IP:$DEVICE_TREE_DIR
+scp $NXP_DIR/linux-imx/arch/arm64/boot/dts/freescale/imx8mp-evk-imx*.dtb $NXP_DIR/linux-imx/arch/arm64/boot/dts/freescale/imx8mp-evk-vb*.dtb root@$TARGET_IP:$DEVICE_TREE_DIR
 
 echo "Copying kernel modules..."
 ssh root@$TARGET_IP "mkdir -p /lib/modules/$TAG"

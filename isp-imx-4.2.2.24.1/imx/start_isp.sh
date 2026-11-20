@@ -11,6 +11,7 @@ NR_DEVICE_TREE_IMX662=$(grep imx662 /sys/firmware/devicetree/base/soc@0/*/i2c@*/
 NR_DEVICE_TREE_IMX676=$(grep imx676 /sys/firmware/devicetree/base/soc@0/*/i2c@*/*/*/*/compatible -l | wc -l 2> /dev/null)
 NR_DEVICE_TREE_IMX678=$(grep imx678 /sys/firmware/devicetree/base/soc@0/*/i2c@*/*/*/*/compatible -l | wc -l 2> /dev/null)
 NR_DEVICE_TREE_IMX900=$(grep imx900 /sys/firmware/devicetree/base/soc@0/*/i2c@*/*/*/*/compatible -l | wc -l 2> /dev/null)
+NR_DEVICE_TREE_VB1943=$(grep vb1943 /sys/firmware/devicetree/base/soc@0/*/i2c@*/*/*/*/compatible -l | wc -l 2> /dev/null)
 
 # check for imx662 devices
 if [ $NR_DEVICE_TREE_IMX662 -eq 2 ]; then
@@ -79,6 +80,23 @@ elif [ $NR_DEVICE_TREE_IMX900 -eq 1 ]; then
 	cd $RUNTIME_DIR
 	
 	exec ./run.sh -c imx900_2k -lm
+
+# check for vb1943 devices
+elif [ $NR_DEVICE_TREE_VB1943 -eq 2 ]; then
+
+	echo "Starting isp_media_server for Dual VB1943"
+
+	cd $RUNTIME_DIR
+
+	exec ./run.sh -c dual_vb1943_2k -lm
+
+elif [ $NR_DEVICE_TREE_VB1943 -eq 1 ]; then
+
+	echo "Starting isp_media_server for VB1943"
+
+	cd $RUNTIME_DIR
+
+	exec ./run.sh -c vb1943_2k -lm
 
 else
 	# no device tree found exit with code no device or address
