@@ -1,3 +1,7 @@
+Framos_v2.1.1 (2026-11-20)
+=========================
+	- add FSM:GO VB1943/VB5943
+
 Framos_v2.1.0 (2025-07-01)
 =========================
 	- add dol HDR and Clear HDR mode
